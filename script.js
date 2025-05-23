@@ -407,7 +407,7 @@ function generateRDF() {
 
     // Prepare graph data
     graphData = convertRdfToD3Format(rdfStore);
-    renderGraph(rdfStore); // Re-render graph with new data
+    renderGraph(graphData);
 }
 
 
@@ -493,8 +493,8 @@ function generateRDF() {
         filter.onchange = () => renderGraph(rdfStore, filter.value);
     }
 
-    function renderGraph(store, predicateFilter = "") {
-        if (!store || store.statements.length === 0) {
+    function renderGraph(data, predicateFilter = "") {
+        if (!data || data.nodes.length === 0) {
             document.getElementById('graph-message').style.display = 'block';
             d3.select("#rdf-graph").selectAll("*").remove();
             return;
@@ -502,11 +502,16 @@ function generateRDF() {
             document.getElementById('graph-message').style.display = 'none';
         }
 
-        let data = convertRdfToD3Format(store);
+        let filteredData = { nodes: [], links: [] };
+
         if (predicateFilter) {
-            data.links = data.links.filter(l => l.label === predicateFilter);
-            const nodeIds = new Set(data.links.flatMap(l => [l.source, l.target]));
-            data.nodes = data.nodes.filter(n => nodeIds.has(n.id));
+            // Filter links by predicate
+            filteredData.links = data.links.filter(l => l.label === predicateFilter);
+            const nodeIds = new Set(filteredData.links.flatMap(l => [l.source, l.target]));
+            filteredData.nodes = data.nodes.filter(n => nodeIds.has(n.id));
+        } else {
+            // No filter, use all data
+            filteredData = data;
         }
 
         const width = graphContainer.clientWidth;
@@ -521,8 +526,8 @@ function generateRDF() {
         // Add a group for the graph elements that will be transformed by zoom/pan
         d3G = d3Svg.append("g");
 
-        d3Simulation = d3.forceSimulation(data.nodes)
-            .force("link", d3.forceLink(data.links).id(d => d.id).distance(100))
+        d3Simulation = d3.forceSimulation(filteredData.nodes)
+            .force("link", d3.forceLink(filteredData.links).id(d => d.id).distance(100))
             .force("charge", d3.forceManyBody().strength(-300))
             .force("center", d3.forceCenter(width / 2, height / 2))
             .force("x", d3.forceX())
@@ -532,7 +537,7 @@ function generateRDF() {
             .attr("stroke", "#999")
             .attr("stroke-opacity", 0.6)
             .selectAll("line")
-            .data(data.links)
+            .data(filteredData.links)
             .join("line")
             .attr("stroke-width", d => Math.sqrt(d.value || 1));
 
@@ -540,7 +545,7 @@ function generateRDF() {
             .attr("stroke", "#fff")
             .attr("stroke-width", 1.5)
             .selectAll("g")
-            .data(data.nodes)
+            .data(filteredData.nodes)
             .join("g")
             .attr("class", "node")
             .call(d3.drag()
@@ -581,7 +586,7 @@ function generateRDF() {
         d3LinkLabel = d3G.append("g")
             .attr("class", "link-labels")
             .selectAll("text")
-            .data(data.links)
+            .data(filteredData.links)
             .join("text")
             .attr("fill", "#222")
             .text(d => d.label);
@@ -925,15 +930,12 @@ function generateRDF() {
 
     document.getElementById('rotate-graph-switch').addEventListener('change', function(e) {
         const svg = document.getElementById('rdf-graph');
-        // Remove all SVG content
         d3.select(svg).selectAll("*").remove();
 
         if (e.target.checked) {
-            // Render Sankey chart
             renderSankeyGraph(graphData);
         } else {
-            // Render force-directed graph
-            renderGraph(rdfStore);
+            renderGraph(graphData);
         }
     });
 });

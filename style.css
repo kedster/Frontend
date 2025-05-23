@@ -490,3 +490,8 @@ svg text,
     overflow: hidden;
     position: relative;
 }
+
+#graph-type-bar .graph-type-btn.active {
+    background: #2196F3;
+    color: #fff;
+}

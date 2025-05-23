@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let d3Link = null;
     let d3Node = null;
     let d3LinkLabel = null;
+    let showingSankey = false; // Track current graph type
 
     // --- DOM Elements ---
     const navButtons = document.querySelectorAll('.nav-button');
@@ -713,6 +714,7 @@ function generateRDF() {
     }
 
     function renderSankeyGraph(data) {
+        console.log("SankeyGraph called with:", data);
         const width = 928;
         const height = 600;
         const svg = d3.select("#rdf-graph")
@@ -793,7 +795,7 @@ function generateRDF() {
     // --- SPARQL Tester ---
 
     async function executeSPARQL() {
-        if (!rdfStore || rdfStore.statements.length === 0) {
+        if (!rdfOutputEditor.value.trim()) {
             alert('No RDF graph loaded. Please generate RDF first.');
             showTab('output');
             return;
@@ -806,20 +808,9 @@ function generateRDF() {
         }
 
         try {
-            const queryEngine = $rdf.SPARQL.query(query, rdfStore);
-            const results = [];
-            await new Promise((resolve, reject) => {
-                queryEngine.each((solution) => {
-                    const row = {};
-                    solution.variables.forEach(v => {
-                        row[v.value] = solution[v].value;
-                    });
-                    results.push(row);
-                }, undefined, () => resolve(), (err) => reject(err));
-            });
-
+            sparqlResultsDiv.innerHTML = '<p>Running query...</p>';
+            const results = await executeComunicaSparql(query, rdfOutputEditor.value);
             displaySparqlResults(results);
-
         } catch (e) {
             console.error("SPARQL Query Error:", e);
             sparqlResultsDiv.innerHTML = `<p style="color:red;">Error executing query: ${e.message || e}</p>`;
@@ -932,7 +923,43 @@ function generateRDF() {
     exportGraphButton.addEventListener('click', exportGraphAsSvg);
     resetAppButton.addEventListener('click', resetAll);
 
-    // --- Initialization ---
+    // 1. Define your graph renderers here
+const graphRenderers = [
+    { label: "Force-Directed Graph", render: renderGraph },
+    { label: "Sankey Diagram", render: renderSankeyGraph }
+    // Add more graph types here as needed
+];
+
+// 2. Dynamically create buttons for each graph type
+const graphTypeBar = document.createElement('div');
+graphTypeBar.id = 'graph-type-bar';
+graphTypeBar.style.marginBottom = '10px';
+graphTypeBar.style.display = 'flex';
+graphTypeBar.style.gap = '10px';
+
+graphRenderers.forEach((renderer, idx) => {
+    const btn = document.createElement('button');
+    btn.textContent = renderer.label;
+    btn.className = 'graph-type-btn';
+    if (idx === 0) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+        // Remove active from all buttons
+        document.querySelectorAll('.graph-type-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Clear SVG and render selected graph
+        d3.select("#rdf-graph").selectAll("*").remove();
+        renderer.render(graphData);
+    });
+    graphTypeBar.appendChild(btn);
+});
+
+// Insert the bar above the graph container
+graphContainer.parentNode.insertBefore(graphTypeBar, graphContainer);
+
+// 3. Optionally, render the default graph on load
+graphRenderers[0].render(graphData);
+
+// --- Initialization ---
     loadSettings();
     showTab('instructions'); // Show instructions tab by default
 
@@ -947,3 +974,20 @@ function generateRDF() {
         }
     });
 });
+
+async function executeComunicaSparql(query, turtleText) {
+    const comunicaEngine = new Comunica.QueryEngine();
+    const results = [];
+    const bindingsStream = await comunicaEngine.queryBindings(query, {
+        sources: [{ type: 'string', value: turtleText, mediaType: 'text/turtle' }]
+    });
+    const bindings = await bindingsStream.toArray();
+    bindings.forEach(binding => {
+        const row = {};
+        for (const [key, value] of binding.entries()) {
+            row[key] = value.value;
+        }
+        results.push(row);
+    });
+    return results;
+}

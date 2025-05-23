@@ -552,9 +552,6 @@ function generateRDF() {
             .attr("fill", d => d.type === 'subject' ? '#4CAF50' : (d.type === 'literal' ? '#FFC107' : '#2196F3'));
 
         d3Node.append("text")
-            .attr("x", 0)
-            .attr("y", "0.31em")
-            .attr("dy", "1.5em")
             .attr("fill", "#222")
             .text(d => d.label);
 
@@ -563,9 +560,7 @@ function generateRDF() {
             .selectAll("text")
             .data(data.links)
             .join("text")
-            .attr("font-size", 9)
             .attr("fill", "#222")
-            .attr("text-anchor", "middle")
             .text(d => d.label);
 
         d3Simulation.on("tick", () => {

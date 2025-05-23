@@ -299,8 +299,9 @@ textarea {
 }
 
 /* === D3 Specific Styles === */
+svg text,
 #rdf-graph text {
-    fill: #222 !important;              /* Explicit dark fill for all SVG text */
+    fill: #222 !important;
 }
 
 .link-labels text,

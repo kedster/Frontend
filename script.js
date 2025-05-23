@@ -551,17 +551,31 @@ function generateRDF() {
             .attr("r", 18) // Increased from 10 to 18
             .attr("fill", d => d.type === 'subject' ? '#4CAF50' : (d.type === 'literal' ? '#FFC107' : '#2196F3'));
 
-        d3Node.append("rect")
-            .attr("x", -28) // half width, centers the rectangle
-            .attr("y", -18) // half height, centers the rectangle
-            .attr("width", 56)
-            .attr("height", 36)
-            .attr("rx", 8) // rounded corners, optional
-            .attr("fill", d => d.type === 'subject' ? '#4CAF50' : (d.type === 'literal' ? '#FFC107' : '#2196F3'));
-
         d3Node.append("text")
             .attr("fill", "#222")
+            .attr("text-anchor", "middle")
+            .attr("alignment-baseline", "middle")
             .text(d => d.label);
+
+        // After appending text, set rect size based on text
+        d3Node.each(function(d) {
+            const textElem = d3.select(this).select("text").node();
+            const bbox = textElem.getBBox();
+            // Add some padding
+            const paddingX = 16;
+            const paddingY = 10;
+            // Remove any previous rect (if re-rendering)
+            d3.select(this).select("rect").remove();
+            // Insert rect before text
+            d3.select(this)
+                .insert("rect", "text")
+                .attr("x", bbox.x - paddingX / 2)
+                .attr("y", bbox.y - paddingY / 2)
+                .attr("width", bbox.width + paddingX)
+                .attr("height", bbox.height + paddingY)
+                .attr("rx", 8)
+                .attr("fill", d.type === 'subject' ? '#4CAF50' : (d.type === 'literal' ? '#FFC107' : '#2196F3'));
+        });
 
         d3LinkLabel = d3G.append("g")
             .attr("class", "link-labels")

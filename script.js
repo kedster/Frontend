@@ -272,18 +272,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         mappingPlaceholder.style.display = 'none';
 
-        const createDropdown = (id, selectedValue = '') => {
-            let options = headers.map(h => `<option value="${h}">${h}</option>`).join('');
-            return `<select id="${id}">${options}</select>`;
-        };
-
         const currentMapping = appSettings.mapping;
+
+        // Helper to get a valid value or fallback to first header
+        const getValidOrFirst = (val) => (headers.includes(val) ? val : headers[0]);
 
         columnMappingContainer.innerHTML = `
             <div class="column-mapping-row">
                 <div>
                     <label for="map-subject">Subject Column:</label>
-                    ${createDropdown('map-subject', currentMapping.subject.value)}
+                    <select id="map-subject">
+                        ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
+                    </select>
                 </div>
                 <div>
                     <label for="map-predicate">Predicate Column / Static:</label>
@@ -295,7 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div>
                     <label for="map-object">Object Column:</label>
-                    ${createDropdown('map-object', currentMapping.object.value)}
+                    <select id="map-object">
+                        ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
+                    </select>
                     <div class="radio-group">
                         <label><input type="radio" name="object-type" id="object-type-uri" value="uri" ${currentMapping.object.objectType === 'uri' ? 'checked' : ''}> URI</label>
                         <label><input type="radio" name="object-type" id="object-type-literal" value="literal" ${currentMapping.object.objectType === 'literal' ? 'checked' : ''}> Literal</label>
@@ -304,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
+        // Set selects to valid or default values
         const subjectSelect = document.getElementById('map-subject');
         const predicateSelect = document.getElementById('map-predicate');
         const objectSelect = document.getElementById('map-object');
@@ -311,30 +314,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const objectTypeUriRadio = document.getElementById('object-type-uri');
         const objectTypeLiteralRadio = document.getElementById('object-type-literal');
 
-        // Set previously selected values
-        if (currentMapping.subject.value && headers.includes(currentMapping.subject.value)) {
-            subjectSelect.value = currentMapping.subject.value;
-        } else if (headers.length > 0) {
-            subjectSelect.value = headers[0]; // Default to first
-        }
+        subjectSelect.value = getValidOrFirst(currentMapping.subject.value);
+        objectSelect.value = getValidOrFirst(currentMapping.object.value);
 
         if (currentMapping.predicate.type === 'static') {
             predicateSelect.value = 'static:predicate';
             staticPredicateInput.style.display = 'block';
-        } else if (currentMapping.predicate.value && headers.includes(currentMapping.predicate.value)) {
-            predicateSelect.value = currentMapping.predicate.value;
-        } else if (headers.length > 1) { // Default to second if exists
-            predicateSelect.value = headers[1];
-        } else if (headers.length > 0) {
-            predicateSelect.value = headers[0];
-        }
-
-        if (currentMapping.object.value && headers.includes(currentMapping.object.value)) {
-            objectSelect.value = currentMapping.object.value;
-        } else if (headers.length > 2) { // Default to third if exists
-            objectSelect.value = headers[2];
-        } else if (headers.length > 0) {
-            objectSelect.value = headers[0];
+        } else {
+            predicateSelect.value = getValidOrFirst(currentMapping.predicate.value);
+            staticPredicateInput.style.display = 'none';
         }
 
         // Event listeners for mapping changes
@@ -753,6 +741,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         tableHtml += '</tbody></table>';
         sparqlResultsDiv.innerHTML = tableHtml;
+    }
+
+    function syncMappingFromUI() {
+        const subjectSelect = document.getElementById('map-subject');
+        const predicateSelect = document.getElementById('map-predicate');
+        const objectSelect = document.getElementById('map-object');
+        const staticPredicateInput = document.getElementById('static-predicate-value');
+        const objectTypeUriRadio = document.getElementById('object-type-uri');
+
+        if (subjectSelect && predicateSelect && objectSelect && staticPredicateInput && objectTypeUriRadio) {
+            appSettings.mapping.subject.value = subjectSelect.value;
+            appSettings.mapping.predicate.type = predicateSelect.value.startsWith('static:') ? 'static' : 'column';
+            appSettings.mapping.predicate.value = predicateSelect.value.startsWith('static:') ? staticPredicateInput.value : predicateSelect.value;
+            appSettings.mapping.object.value = objectSelect.value;
+            appSettings.mapping.object.objectType = objectTypeUriRadio.checked ? 'uri' : 'literal';
+            saveSettings();
+        }
     }
 
     // --- Event Listeners ---

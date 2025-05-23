@@ -507,8 +507,8 @@ function generateRDF() {
         if (predicateFilter) {
             // Filter links by predicate
             filteredData.links = data.links.filter(l => l.label === predicateFilter);
-            const nodeIds = new Set(filteredData.links.flatMap(l => [l.source, l.target]));
-            filteredData.nodes = data.nodes.filter(n => nodeIds.has(n.id));
+            const nodeLabels = new Set(filteredData.links.flatMap(l => [l.source, l.target]));
+            filteredData.nodes = data.nodes.filter(n => nodeLabels.has(n.label));
         } else {
             // No filter, use all data
             filteredData = data;
@@ -527,7 +527,7 @@ function generateRDF() {
         d3G = d3Svg.append("g");
 
         d3Simulation = d3.forceSimulation(filteredData.nodes)
-            .force("link", d3.forceLink(filteredData.links).id(d => d.id).distance(100))
+            .force("link", d3.forceLink(filteredData.links)d.label(d => d.label).distance(100))
             .force("charge", d3.forceManyBody().strength(-300))
             .force("center", d3.forceCenter(width / 2, height / 2))
             .force("x", d3.forceX())
@@ -626,15 +626,15 @@ function generateRDF() {
             d3.select(event.currentTarget).classed("highlighted", true);
 
             // Highlight connected links and nodes
-            d3Link.filter(l => l.source.id === d.id || l.target.id === d.id)
+            d3Link.filter(l => l.sourced.label === d.label || l.targetd.label === d.label)
                 .classed("highlighted", true);
-            d3LinkLabel.filter(l => l.source.id === d.id || l.target.id === d.id)
+            d3LinkLabel.filter(l => l.sourced.label === d.label || l.targetd.label === d.label)
                 .classed("highlighted", true);
 
             d3Node.filter(n => {
                 return data.links.some(l =>
-                    (l.source.id === d.id && l.target.id === n.id) ||
-                    (l.target.id === d.id && l.source.id === n.id)
+                    (l.source.label === d.label && l.target.label === n.label) ||
+                    (l.target.label === d.label && l.source.label === n.label)
                 );
             }).classed("highlighted", true);
         });

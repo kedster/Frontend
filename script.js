@@ -548,7 +548,7 @@ function generateRDF() {
                 .on("end", dragended));
 
         d3Node.append("circle")
-            .attr("r", 10)
+            .attr("r", 18) // Increased from 10 to 18
             .attr("fill", d => d.type === 'subject' ? '#4CAF50' : (d.type === 'literal' ? '#FFC107' : '#2196F3'));
 
         d3Node.append("text")

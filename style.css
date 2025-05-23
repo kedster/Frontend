@@ -364,6 +364,10 @@ textarea {
     background-color: #f2f2f2;
 }
 
+.d3-tooltip {
+    font-size: 0.95em;
+    pointer-events: none;
+}
 
 /* Bottom Bar */
 .bottom-bar {

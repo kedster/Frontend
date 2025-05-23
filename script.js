@@ -484,13 +484,27 @@ function generateRDF() {
         return { nodes: uniqueNodes, links: links };
     }
 
-    function renderGraph(store) {
+    function updatePredicateFilter(data) {
+        const predicates = Array.from(new Set(data.links.map(l => l.label)));
+        const filter = document.getElementById('predicate-filter');
+        filter.innerHTML = `<option value="">All predicates</option>` +
+            predicates.map(p => `<option value="${p}">${p}</option>`).join('');
+        filter.onchange = () => renderGraph(rdfStore, filter.value);
+    }
+
+    function renderGraph(store, predicateFilter = "") {
         if (!store || store.statements.length === 0) {
             graphContainer.innerHTML = '<p>Upload CSV, configure mapping, and generate RDF to see the graph.</p><svg id="rdf-graph"></svg>';
             return;
         }
 
-        const data = convertRdfToD3Format(store);
+        let data = convertRdfToD3Format(store);
+        if (predicateFilter) {
+            data.links = data.links.filter(l => l.label === predicateFilter);
+            const nodeIds = new Set(data.links.flatMap(l => [l.source, l.target]));
+            data.nodes = data.nodes.filter(n => nodeIds.has(n.id));
+        }
+
         const width = graphContainer.clientWidth;
         const height = graphContainer.clientHeight;
 
@@ -610,6 +624,38 @@ function generateRDF() {
                 d3Link.classed("highlighted", false);
                 d3LinkLabel.classed("highlighted", false);
             }
+        });
+
+        // Add a tooltip div in your HTML (once)
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "d3-tooltip")
+            .style("position", "absolute")
+            .style("z-index", "10")
+            .style("visibility", "hidden")
+            .style("background", "#fff")
+            .style("border", "1px solid #ccc")
+            .style("padding", "5px")
+            .style("border-radius", "4px");
+
+        // In renderGraph, after d3Node and d3Link are created:
+        d3Node.on("mouseover", (event, d) => {
+            tooltip.html(`<strong>${d.label}</strong><br>${d.uri || ''}`)
+                .style("visibility", "visible");
+        }).on("mousemove", (event) => {
+            tooltip.style("top", (event.pageY + 10) + "px")
+                   .style("left", (event.pageX + 10) + "px");
+        }).on("mouseout", () => {
+            tooltip.style("visibility", "hidden");
+        });
+
+        d3Link.on("mouseover", (event, d) => {
+            tooltip.html(`<strong>${d.label}</strong><br>${d.uri || ''}`)
+                .style("visibility", "visible");
+        }).on("mousemove", (event) => {
+            tooltip.style("top", (event.pageY + 10) + "px")
+                   .style("left", (event.pageX + 10) + "px");
+        }).on("mouseout", () => {
+            tooltip.style("visibility", "hidden");
         });
 
         function dragstarted(event, d) {

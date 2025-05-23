@@ -469,17 +469,18 @@ function generateRDF() {
                 nodes.push(nodeMap.get(objectKey));
             }
 
-            // Add link
+            // Add link (use label, not id)
             links.push({
-                source: nodeMap.get(subjectUri).id,
-                target: nodeMap.get(objectKey).id,
+                source: nodeMap.get(subjectUri).label,
+                target: nodeMap.get(objectKey).label,
                 label: predicateUri.split('/').pop().split('#').pop() || predicateUri,
-                uri: predicateUri
+                uri: predicateUri,
+                value: 1 // Sankey requires a value
             });
         });
 
-        // Deduplicate nodes based on ID
-        const uniqueNodes = Array.from(new Map(nodes.map(node => [node.id, node])).values());
+        // Deduplicate nodes based on label
+        const uniqueNodes = Array.from(new Map(nodes.map(node => [node.label, node])).values());
 
         return { nodes: uniqueNodes, links: links };
     }
@@ -711,6 +712,25 @@ function generateRDF() {
             .attr("height", height);
 
         svg.selectAll("*").remove();
+
+        // --- Add Chart Title ---
+        svg.append("text")
+            .attr("x", width / 2)
+            .attr("y", 32)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "2em")
+            .attr("font-weight", "bold")
+            .attr("fill", "#222")
+            .text("Sankey Graph");
+
+        // --- Add Legend ---
+        svg.append("g")
+            .append("text")
+            .attr("x", width - 120)
+            .attr("y", 60)
+            .attr("font-size", "1.1em")
+            .attr("fill", "#222")
+            .text("Legend: Predicate");
 
         const sankey = d3.sankey()
             .nodeId(d => d.label)

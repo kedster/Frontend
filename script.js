@@ -527,7 +527,7 @@ function generateRDF() {
         d3G = d3Svg.append("g");
 
         d3Simulation = d3.forceSimulation(filteredData.nodes)
-            .force("link", d3.forceLink(filteredData.links)d.label(d => d.label).distance(100))
+            .force("link", d3.forceLink(filteredData.links).id(d => d.label).distance(100))
             .force("charge", d3.forceManyBody().strength(-300))
             .force("center", d3.forceCenter(width / 2, height / 2))
             .force("x", d3.forceX())

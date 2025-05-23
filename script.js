@@ -548,6 +548,7 @@ function generateRDF() {
             .attr("x", 0)
             .attr("y", "0.31em")
             .attr("dy", "1.5em") // Position text below circle
+            .attr("fill", "#222") // <-- Make label text dark
             .text(d => d.label)
             .clone(true).lower()
             .attr("fill", "none")

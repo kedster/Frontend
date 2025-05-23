@@ -78,8 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(tabId).classList.add('active');
         document.querySelector(`.nav-button[data-tab="${tabId}"]`).classList.add('active');
 
-        // If switching to RDF Output, generate RDF
+        // If switching to RDF Output, sync mapping and generate RDF
         if (tabId === 'output') {
+            syncMappingFromUI();
             generateRDF();
         }
 

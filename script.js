@@ -551,6 +551,14 @@ function generateRDF() {
             .attr("r", 18) // Increased from 10 to 18
             .attr("fill", d => d.type === 'subject' ? '#4CAF50' : (d.type === 'literal' ? '#FFC107' : '#2196F3'));
 
+        d3Node.append("rect")
+            .attr("x", -28) // half width, centers the rectangle
+            .attr("y", -18) // half height, centers the rectangle
+            .attr("width", 56)
+            .attr("height", 36)
+            .attr("rx", 8) // rounded corners, optional
+            .attr("fill", d => d.type === 'subject' ? '#4CAF50' : (d.type === 'literal' ? '#FFC107' : '#2196F3'));
+
         d3Node.append("text")
             .attr("fill", "#222")
             .text(d => d.label);

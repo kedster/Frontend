@@ -296,10 +296,7 @@ textarea {
 }
 
 /* D3 Specific Styles */
-#rdf-graph text,
-.node text,
-.link-labels text,
-.link-label {
+#rdf-graph text {
     fill: #222 !important;
 }
 .link-labels text,
@@ -382,7 +379,7 @@ textarea {
 
 /* Bottom Bar */
 .bottom-bar {
-    background-color: #fafbfc;
+    background-color: #b2cde7;
     padding: 1rem 2rem;
     text-align: center;
     box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
@@ -390,6 +387,30 @@ textarea {
     justify-content: center;
     gap: 15px;
     flex-wrap: wrap;
+}
+
+/* Progress Bar */
+#progress-bar {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    z-index: 9999;
+    background: linear-gradient(90deg,#4CAF50 40%,#2196F3 100%);
+    transition: opacity 0.3s;
+}
+
+/* Graph Message */
+#graph-message {
+    margin-bottom: 1em;
+    color: #555;
+}
+
+#graph-visualization > div label {
+    margin-bottom: 1em;
+    display: inline-block;
 }
 
 /* Responsive Adjustments */
@@ -436,7 +457,7 @@ textarea {
     margin: 0 auto;
     background: #fafbfc;
     border-radius: 8px;
-    border: 1px solid #eee;
+    border: 1px solid #141414;
     overflow: hidden;
     position: relative;
 }

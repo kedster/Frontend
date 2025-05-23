@@ -373,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const prefixMap = getPrefixMap();
 
         rdfStore = $rdf.graph();
-        rdfStore.setNamespace($rdf.Namespace(baseURI)); // Set default namespace for convenience
+       // rdfStore.setNamespace($rdf.Namespace(baseURI)); // Set default namespace for convenience
 
         // Add prefixes to rdflib store
         for (const name in prefixMap) {

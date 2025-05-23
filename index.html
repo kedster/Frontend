@@ -6,10 +6,16 @@
     <title>CSV to RDF Converter & Graph Visualizer</title>
     <link rel="stylesheet" href="style.css">
     <!-- Libraries from CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <!-- rdflib.js for RDF handling -->
     <script src="https://unpkg.com/rdflib/dist/rdflib.min.js"></script>
+    <!-- D3.js for graph visualization -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- FileSaver.js for downloads (optional, if you use saveAs) -->
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+    <!-- Your own script (must come after the above) -->
     <script src="script.js"></script>
 </head>
 <body>

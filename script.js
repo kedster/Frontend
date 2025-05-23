@@ -376,9 +376,9 @@ document.addEventListener('DOMContentLoaded', () => {
        // rdfStore.setNamespace($rdf.Namespace(baseURI)); // Set default namespace for convenience
 
         // Add prefixes to rdflib store
-        for (const name in prefixMap) {
-            rdfStore.setPrefix(name, $rdf.Namespace(prefixMap[name]));
-        }
+       // for (const name in prefixMap) {
+      //      rdfStore.setPrefix(name, $rdf.Namespace(prefixMap[name]));
+      //  }
 
         csvData.forEach(row => {
             const subjectValue = row[subjectCol];

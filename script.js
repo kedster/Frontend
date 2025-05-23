@@ -364,78 +364,59 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const subjectCol = document.getElementById('map-subject').value;
-        const predicateMappingType = document.getElementById('map-predicate').value.startsWith('static:') ? 'static' : 'column';
-        const predicateColOrStaticValue = predicateMappingType === 'static' ? document.getElementById('static-predicate-value').value : document.getElementById('map-predicate').value;
+        const predicateColOrStaticValue = document.getElementById('map-predicate').value;
         const objectCol = document.getElementById('map-object').value;
         const objectType = document.querySelector('input[name="object-type"]:checked').value;
 
         const baseURI = baseUriInput.value.endsWith('/') ? baseUriInput.value : baseUriInput.value + '/';
         const prefixMap = getPrefixMap();
 
-        rdfStore = $rdf.graph();
-       // rdfStore.setNamespace($rdf.Namespace(baseURI)); // Set default namespace for convenience
+        // Add schema.org if not present
+        if (!prefixMap['schema']) prefixMap['schema'] = 'http://schema.org/';
 
-        // Add prefixes to rdflib store
-       // for (const name in prefixMap) {
-      //      rdfStore.setPrefix(name, $rdf.Namespace(prefixMap[name]));
-      //  }
+        rdfStore = $rdf.graph();
 
         csvData.forEach(row => {
             const subjectValue = row[subjectCol];
-            const objectValue = row[objectCol];
+            if (!subjectValue) return;
 
-            if (!subjectValue || !objectValue) {
-                console.warn(`Skipping row due to missing subject or object value: ${JSON.stringify(row)}`);
-                return;
-            }
+            const subjectNode = $rdf.sym(baseURI + encodeURIComponent(subjectValue.replace(/\s+/g, '_')));
 
-            let subjectNode;
-            try {
-                // Try to create a valid URI for the subject
-                subjectNode = $rdf.sym(baseURI + encodeURIComponent(subjectValue.replace(/\s+/g, '_')));
-            } catch (e) {
-                console.error(`Invalid subject URI for value: ${subjectValue}`, e);
-                return; // Skip this triple if subject is invalid
-            }
+            // If predicate is "schema:address", group all columns except subject under a blank node
+            if (predicateColOrStaticValue === 'schema:address') {
+                const addressBlank = $rdf.blankNode();
+                rdfStore.add(subjectNode, $rdf.sym('http://schema.org/address'), addressBlank);
 
-            let predicateNode;
-            if (predicateMappingType === 'static') {
-                try {
-                    predicateNode = $rdf.sym(predicateColOrStaticValue);
-                } catch (e) {
-                    console.error(`Invalid static predicate URI: ${predicateColOrStaticValue}`, e);
-                    return; // Skip this triple
-                }
+                // Only add known address-related columns (for more control, you could let user pick these in UI)
+                const addressFields = ['addressRegion', 'postalCode', 'addressLocality', 'streetAddress'];
+                addressFields.forEach(col => {
+                    if (row[col]) {
+                        rdfStore.add(
+                            addressBlank,
+                            $rdf.sym('http://schema.org/' + col),
+                            $rdf.literal(row[col])
+                        );
+                    }
+                });
             } else {
-                const predicateColValue = row[predicateColOrStaticValue];
-                if (!predicateColValue) {
-                    console.warn(`Skipping row due to missing predicate column value: ${JSON.stringify(row)}`);
-                    return;
+                // Dynamic mapping: support static predicate, column predicate, and object type
+                let predicateNode;
+                if (predicateColOrStaticValue === 'static:predicate') {
+                    const staticPredicateValue = document.getElementById('static-predicate-value').value;
+                    predicateNode = $rdf.sym(resolveUri(staticPredicateValue, prefixMap));
+                } else {
+                    predicateNode = $rdf.sym(resolveUri(predicateColOrStaticValue, prefixMap));
                 }
-                try {
-                    // Attempt to resolve predicate using prefixes or use as-is
-                    const resolvedPredicateUri = resolveUri(predicateColValue, prefixMap);
-                    predicateNode = $rdf.sym(resolvedPredicateUri);
-                } catch (e) {
-                    console.error(`Invalid predicate URI for value: ${predicateColValue}`, e);
-                    return; // Skip this triple
-                }
-            }
 
-            let objectNode;
-            if (objectType === 'uri') {
-                try {
-                    const resolvedObjectUri = resolveUri(objectValue, prefixMap);
-                    objectNode = $rdf.sym(resolvedObjectUri);
-                } catch (e) {
-                    console.error(`Invalid object URI for value: ${objectValue}`, e);
-                    return; // Skip this triple
+                let objectNode;
+                const objectValue = row[objectCol];
+                if (objectType === 'uri') {
+                    objectNode = $rdf.sym(resolveUri(objectValue, prefixMap));
+                } else {
+                    objectNode = $rdf.literal(objectValue);
                 }
-            } else { // literal
-                objectNode = $rdf.lit(objectValue);
+                rdfStore.add(subjectNode, predicateNode, objectNode);
             }
-
-            rdfStore.add(subjectNode, predicateNode, objectNode);
         });
 
         // Serialize to Turtle

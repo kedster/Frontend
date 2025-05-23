@@ -514,6 +514,10 @@ function generateRDF() {
             filteredData = data;
         }
 
+        // Debug: log nodes and links
+        console.log("Nodes:", filteredData.nodes.map(n => n.label));
+        console.log("Links:", filteredData.links.map(l => [l.source, l.target]));
+
         const width = graphContainer.clientWidth;
         const height = graphContainer.clientHeight;
 
@@ -939,5 +943,3 @@ function generateRDF() {
         }
     });
 });
-console.log("Nodes:", filteredData.nodes.map(n => n.label));
-console.log("Links:", filteredData.links.map(l => [l.source, l.target]));

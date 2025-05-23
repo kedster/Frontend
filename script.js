@@ -439,15 +439,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Serialize to Turtle
-        const serializer = new $rdf.Serializer(rdfStore);
-        serializer.setPrefixForUri('ex', baseURI); // Ensure base URI is always prefixed if desired
-        serializer.setPrefixForUri('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#');
-        serializer.setPrefixForUri('rdfs', 'http://www.w3.org/2000/01/rdf-schema#');
-        serializer.setPrefixForUri('owl', 'http://www.w3.org/2002/07/owl#');
-        for (const name in prefixMap) {
-            serializer.setPrefixForUri(name, prefixMap[name]);
-        }
-
+        const namespaces = {
+            ex: baseURI,
+            rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+            rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
+            owl: 'http://www.w3.org/2002/07/owl#',
+            ...prefixMap
+        };
+        const serializer = new $rdf.Serializer(rdfStore, { namespaces });
         const rdfString = serializer.statementsToN3(rdfStore.statements);
         rdfOutputEditor.value = rdfString;
 

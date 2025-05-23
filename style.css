@@ -293,9 +293,21 @@ textarea {
 
 #rdf-graph text,
 .node text,
-.link-label,
-.link-labels text {
+.link-labels text,
+.link-label {
     fill: #222 !important;
+}
+
+.link-labels text,
+.link-label {
+    font-size: 9px;
+    text-anchor: middle;
+}
+
+.node text {
+    font-size: 10px;
+    pointer-events: none;
+    text-anchor: middle;
 }
 
 .node circle {
@@ -393,7 +405,6 @@ textarea {
     main {
         flex-direction: column;
     }
-
     .left-panel {
         width: 100%;
         flex-direction: row;
@@ -402,34 +413,44 @@ textarea {
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         padding: 0.5rem 0;
     }
-
     .nav-button {
         flex-shrink: 0;
         padding: 0.8rem 1rem;
         font-size: 1rem;
     }
-
     .content-area {
         padding: 1rem;
     }
-
     .column-mapping-row {
         flex-direction: column;
         align-items: stretch;
     }
-
-    .column-mapping-row > div {
-        min-width: unset;
+    .column-mapping-row > div,
+    .button {
         width: 100%;
+        min-width: unset;
+        margin-right: 0;
     }
-
     .bottom-bar {
         padding: 1rem;
         flex-direction: column;
     }
+}
 
-    .button {
-        width: 100%;
-        margin-right: 0;
-    }
+/* D3 Specific Styles */
+#rdf-graph text,
+.node text,
+.link-labels text,
+.link-label {
+    fill: #222 !important;
+}
+.link-labels text,
+.link-label {
+    font-size: 9px;
+    text-anchor: middle;
+}
+.node text {
+    font-size: 10px;
+    pointer-events: none;
+    text-anchor: middle;
 }

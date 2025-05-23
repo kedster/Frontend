@@ -830,4 +830,16 @@ function generateRDF() {
     // --- Initialization ---
     loadSettings();
     showTab('instructions'); // Show instructions tab by default
+
+    document.getElementById('rotate-graph-switch').addEventListener('change', function(e) {
+        const svg = document.getElementById('rdf-graph');
+        const g = svg.querySelector('g');
+        const width = svg.clientWidth || 600;
+        const height = svg.clientHeight || 600;
+        if (e.target.checked) {
+            g.setAttribute('transform', `rotate(90 ${width/2} ${height/2})`);
+        } else {
+            g.setAttribute('transform', '');
+        }
+    });
 });

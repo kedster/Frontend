@@ -115,7 +115,13 @@
                 <div id="graph-message" style="margin-bottom: 1em; color: #555;">
                     Upload CSV, configure mapping, and generate RDF to see the graph.
                 </div>
-                <div id="graph-container">
+                <div style="margin-bottom: 1em;">
+                    <label>
+                        <input type="checkbox" id="rotate-graph-switch">
+                        Rotate Visualization
+                    </label>
+                </div>
+                <div id="graph-container" class="graph-container">
                     <svg id="rdf-graph"></svg>
                 </div>
             </section>

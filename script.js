@@ -494,8 +494,11 @@ function generateRDF() {
 
     function renderGraph(store, predicateFilter = "") {
         if (!store || store.statements.length === 0) {
-            graphContainer.innerHTML = '<p>Upload CSV, configure mapping, and generate RDF to see the graph.</p><svg id="rdf-graph"></svg>';
+            document.getElementById('graph-message').style.display = 'block';
+            d3.select("#rdf-graph").selectAll("*").remove();
             return;
+        } else {
+            document.getElementById('graph-message').style.display = 'none';
         }
 
         let data = convertRdfToD3Format(store);
@@ -532,16 +535,6 @@ function generateRDF() {
             .join("line")
             .attr("stroke-width", d => Math.sqrt(d.value || 1));
 
-        d3LinkLabel = d3G.append("g")
-            .attr("class", "link-labels")
-            .selectAll("text")
-            .data(data.links)
-            .join("text")
-            .attr("font-size", 9)
-            .attr("fill", "#555")
-            .attr("text-anchor", "middle")
-            .text(d => d.label);
-
         d3Node = d3G.append("g")
             .attr("stroke", "#fff")
             .attr("stroke-width", 1.5)
@@ -561,13 +554,19 @@ function generateRDF() {
         d3Node.append("text")
             .attr("x", 0)
             .attr("y", "0.31em")
-            .attr("dy", "1.5em") // Position text below circle
-            .attr("fill", "#222") // <-- Make label text dark
-            .text(d => d.label)
-            .clone(true).lower()
-            .attr("fill", "none")
-            .attr("stroke", "white")
-            .attr("stroke-width", 3);
+            .attr("dy", "1.5em")
+            .attr("fill", "#222")
+            .text(d => d.label);
+
+        d3LinkLabel = d3G.append("g")
+            .attr("class", "link-labels")
+            .selectAll("text")
+            .data(data.links)
+            .join("text")
+            .attr("font-size", 9)
+            .attr("fill", "#222")
+            .attr("text-anchor", "middle")
+            .text(d => d.label);
 
         d3Simulation.on("tick", () => {
             d3Link

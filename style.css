@@ -291,6 +291,13 @@ textarea {
     background-color: #fff;
 }
 
+#rdf-graph text,
+.node text,
+.link-label,
+.link-labels text {
+    fill: #222 !important;
+}
+
 .node circle {
     stroke: var(--primary-color);
     stroke-width: 1.5px;

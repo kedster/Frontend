@@ -702,6 +702,61 @@ function generateRDF() {
         saveAs(blob, 'rdf_graph.svg');
     }
 
+    function renderSankeyGraph(data) {
+        const width = 928;
+        const height = 600;
+        const svg = d3.select("#rdf-graph")
+            .attr("viewBox", [0, 0, width, height])
+            .attr("width", width)
+            .attr("height", height);
+
+        svg.selectAll("*").remove();
+
+        const sankey = d3.sankey()
+            .nodeId(d => d.label)
+            .nodeWidth(15)
+            .nodePadding(10)
+            .extent([[1, 5], [width - 1, height - 5]]);
+
+        const {nodes, links} = sankey({
+            nodes: data.nodes.map(d => Object.assign({}, d)),
+            links: data.links.map(d => Object.assign({}, d))
+        });
+
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+        svg.append("g")
+            .attr("stroke", "#000")
+            .selectAll("rect")
+            .data(nodes)
+            .join("rect")
+            .attr("x", d => d.x0)
+            .attr("y", d => d.y0)
+            .attr("height", d => d.y1 - d.y0)
+            .attr("width", d => d.x1 - d.x0)
+            .attr("fill", d => color(d.type));
+
+        svg.append("g")
+            .attr("fill", "none")
+            .attr("stroke-opacity", 0.5)
+            .selectAll("path")
+            .data(links)
+            .join("path")
+            .attr("d", d3.sankeyLinkHorizontal())
+            .attr("stroke", "#888")
+            .attr("stroke-width", d => Math.max(1, d.width));
+
+        svg.append("g")
+            .selectAll("text")
+            .data(nodes)
+            .join("text")
+            .attr("x", d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+            .attr("y", d => (d.y1 + d.y0) / 2)
+            .attr("dy", "0.35em")
+            .attr("text-anchor", d => d.x0 < width / 2 ? "start" : "end")
+            .text(d => d.label);
+    }
+
     // --- SPARQL Tester ---
 
     async function executeSPARQL() {
@@ -850,13 +905,15 @@ function generateRDF() {
 
     document.getElementById('rotate-graph-switch').addEventListener('change', function(e) {
         const svg = document.getElementById('rdf-graph');
-        const g = svg.querySelector('g');
-        const width = svg.clientWidth || 600;
-        const height = svg.clientHeight || 600;
+        // Remove all SVG content
+        d3.select(svg).selectAll("*").remove();
+
         if (e.target.checked) {
-            g.setAttribute('transform', `rotate(90 ${width/2} ${height/2})`);
+            // Render Sankey chart
+            renderSankeyGraph(graphData);
         } else {
-            g.setAttribute('transform', '');
+            // Render force-directed graph
+            renderGraph(rdfStore);
         }
     });
 });

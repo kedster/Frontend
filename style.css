@@ -318,19 +318,36 @@ textarea {
 }
 
 /* === Node and Link Appearance === */
+/* === Nodes (Circles) === */
 .node circle {
-    stroke: #007ACC;                    /* Explicit primary color (bright blue) */
+    stroke: #007ACC;                    /* Bright blue stroke — strong contrast */
     stroke-width: 1.5px;
     cursor: pointer;
-    fill: #fff;                         /* Optional: give nodes a white interior */
+    fill: #e0e0e0;                      /* Light grey fill — visible on white, but still neutral */
+
+    /* 
+     * DO NOT use white here (#fff) unless your background is dark. 
+     * For white/light UI themes, #e0e0e0 or #dcdcdc offers just enough contrast 
+     * to remain visible without being distracting.
+     */
 }
 
+/* === Link Lines === */
 .link {
-    stroke: #999;                       /* Medium grey links */
-    stroke-opacity: 0.6;
+    stroke: #666666;                    /* Medium-dark grey — explicitly defined */
+    stroke-opacity: 1.0;                /* Fully opaque — ensures visibility on all backgrounds */
     stroke-width: 1.5px;
-}
 
+    /*
+     * Avoid lighter greys like #999 or reduced opacity here.
+     * On white backgrounds, they fade too much or disappear.
+     */
+}
+.link-label {
+    font-size: 9px;
+    fill: #555;                         /* Darker grey for link labels */
+    text-anchor: middle;
+}
 /* === Highlighted Styles === */
 .node.highlighted circle {
     stroke: #e67e22;                    /* Secondary color - orange for highlight */

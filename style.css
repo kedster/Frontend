@@ -292,7 +292,7 @@ textarea {
     width: 100%;
     height: 100%;
     display: block;
-    background-color: #fff;
+    background-color: #191a1d; /* light grey */
 }
 
 /* D3 Specific Styles */
@@ -455,7 +455,7 @@ textarea {
     height: 600px;
     max-width: 100%;
     margin: 0 auto;
-    background: #fafbfc;
+    background: #f5f6fa; /* light grey */
     border-radius: 8px;
     border: 1px solid #141414;
     overflow: hidden;

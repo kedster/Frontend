@@ -356,85 +356,60 @@ document.addEventListener('DOMContentLoaded', () => {
         return prefixes;
     }
 
-    function generateRDF() {
-        if (csvData.length === 0) {
-            alert('Please upload CSV data first.');
-            showTab('input');
-            return;
+function generateRDF() {
+    if (csvData.length === 0) {
+        alert('Please upload CSV data first.');
+        showTab('input');
+        return;
+    }
+
+    const subjectCol = document.getElementById('map-subject').value;
+    const predicateCol = document.getElementById('map-predicate').value;
+    const objectCol = document.getElementById('map-object').value;
+    const objectType = document.querySelector('input[name="object-type"]:checked').value;
+
+    const baseURI = baseUriInput.value.endsWith('/') ? baseUriInput.value : baseUriInput.value + '/';
+    const prefixMap = getPrefixMap();
+
+    rdfStore = $rdf.graph();
+
+    csvData.forEach(row => {
+        const subjectValue = row[subjectCol];
+        const predicateValue = row[predicateCol];
+        const objectValue = row[objectCol];
+
+        if (!subjectValue || !predicateValue || !objectValue) return;
+
+        const subjectNode = $rdf.sym(baseURI + encodeURIComponent(subjectValue.trim().replace(/\s+/g, '_')));
+        const predicateNode = $rdf.sym(resolveUri(predicateValue.trim(), prefixMap));
+
+        let objectNode;
+        if (objectType === 'uri') {
+            objectNode = $rdf.sym(resolveUri(objectValue.trim(), prefixMap));
+        } else {
+            objectNode = $rdf.literal(objectValue.trim());
         }
 
-        const subjectCol = document.getElementById('map-subject').value;
-        const predicateColOrStaticValue = document.getElementById('map-predicate').value;
-        const objectCol = document.getElementById('map-object').value;
-        const objectType = document.querySelector('input[name="object-type"]:checked').value;
+        rdfStore.add(subjectNode, predicateNode, objectNode);
+    });
 
-        const baseURI = baseUriInput.value.endsWith('/') ? baseUriInput.value : baseUriInput.value + '/';
-        const prefixMap = getPrefixMap();
+    // Serialize to Turtle
+    const namespaces = {
+        ex: baseURI,
+        rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+        rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
+        owl: 'http://www.w3.org/2002/07/owl#',
+        ...prefixMap
+    };
+    const serializer = new $rdf.Serializer(rdfStore, { namespaces });
+    const rdfString = serializer.statementsToN3(rdfStore.statements);
+    rdfOutputEditor.value = rdfString;
 
-        // Add schema.org if not present
-        if (!prefixMap['schema']) prefixMap['schema'] = 'http://schema.org/';
+    // Prepare graph data
+    graphData = convertRdfToD3Format(rdfStore);
+    renderGraph(rdfStore); // Re-render graph with new data
+}
 
-        rdfStore = $rdf.graph();
-
-        csvData.forEach(row => {
-            const subjectValue = row[subjectCol];
-            if (!subjectValue) return;
-
-            const subjectNode = $rdf.sym(baseURI + encodeURIComponent(subjectValue.replace(/\s+/g, '_')));
-
-            // If predicate is "schema:address", group all columns except subject under a blank node
-            if (predicateColOrStaticValue === 'schema:address') {
-                const addressBlank = $rdf.blankNode();
-                rdfStore.add(subjectNode, $rdf.sym('http://schema.org/address'), addressBlank);
-
-                // Only add known address-related columns (for more control, you could let user pick these in UI)
-                const addressFields = ['addressRegion', 'postalCode', 'addressLocality', 'streetAddress'];
-                addressFields.forEach(col => {
-                    if (row[col]) {
-                        rdfStore.add(
-                            addressBlank,
-                            $rdf.sym('http://schema.org/' + col),
-                            $rdf.literal(row[col])
-                        );
-                    }
-                });
-            } else {
-                // Dynamic mapping: support static predicate, column predicate, and object type
-                let predicateNode;
-                if (predicateColOrStaticValue === 'static:predicate') {
-                    const staticPredicateValue = document.getElementById('static-predicate-value').value;
-                    predicateNode = $rdf.sym(resolveUri(staticPredicateValue, prefixMap));
-                } else {
-                    predicateNode = $rdf.sym(resolveUri(predicateColOrStaticValue, prefixMap));
-                }
-
-                let objectNode;
-                const objectValue = row[objectCol];
-                if (objectType === 'uri') {
-                    objectNode = $rdf.sym(resolveUri(objectValue, prefixMap));
-                } else {
-                    objectNode = $rdf.literal(objectValue);
-                }
-                rdfStore.add(subjectNode, predicateNode, objectNode);
-            }
-        });
-
-        // Serialize to Turtle
-        const namespaces = {
-            ex: baseURI,
-            rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-            rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
-            owl: 'http://www.w3.org/2002/07/owl#',
-            ...prefixMap
-        };
-        const serializer = new $rdf.Serializer(rdfStore, { namespaces });
-        const rdfString = serializer.statementsToN3(rdfStore.statements);
-        rdfOutputEditor.value = rdfString;
-
-        // Prepare graph data
-        graphData = convertRdfToD3Format(rdfStore);
-        renderGraph(rdfStore); // Re-render graph with new data
-    }
 
     function resolveUri(uriStr, prefixMap) {
         for (const prefixName in prefixMap) {

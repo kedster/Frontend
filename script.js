@@ -453,9 +453,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Prepare graph data
         graphData = convertRdfToD3Format(rdfStore);
         renderGraph(rdfStore); // Re-render graph with new data
-
-        showTab('output');
-        alert('RDF generated successfully!');
     }
 
     function resolveUri(uriStr, prefixMap) {

@@ -784,6 +784,10 @@ function generateRDF() {
             .attr("dy", "0.35em")
             .attr("text-anchor", d => d.x0 < width / 2 ? "start" : "end")
             .text(d => d.label);
+
+        // Debug: log nodes and links
+        console.log("Sankey nodes:", data.nodes);
+        console.log("Sankey links:", data.links);
     }
 
     // --- SPARQL Tester ---

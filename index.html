@@ -6,20 +6,14 @@
     <title>CSV to RDF Converter & Graph Visualizer</title>
     <link rel="stylesheet" href="style.css">
     <!-- Libraries from CDN -->
-    <!-- PapaParse for CSV parsing -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <!-- rdflib.js for RDF handling -->
     <script src="https://unpkg.com/rdflib/dist/rdflib.min.js"></script>
-    <!-- D3.js for graph visualization -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <!-- FileSaver.js for downloads (optional, if you use saveAs) -->
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-
-    <!-- Your own script (must come after the above) -->
     <script src="script.js"></script>
 </head>
 <body>
-    <div id="progress-bar" style="display:none;position:fixed;top:0;left:0;width:100%;height:4px;z-index:9999;background:linear-gradient(90deg,#4CAF50 40%,#2196F3 100%);transition:opacity 0.3s;"></div>
+    <div id="progress-bar"></div>
     <header>
         <h1>CSV to RDF Converter & Graph Visualizer</h1>
     </header>
@@ -112,10 +106,10 @@
             <!-- Graph Visualization Tab -->
             <section id="graph-visualization" class="tab-content">
                 <h2>Graph Visualization</h2>
-                <div id="graph-message" style="margin-bottom: 1em; color: #555;">
+                <div id="graph-message">
                     Upload CSV, configure mapping, and generate RDF to see the graph.
                 </div>
-                <div style="margin-bottom: 1em;">
+                <div>
                     <label>
                         <input type="checkbox" id="rotate-graph-switch">
                         Rotate Visualization
@@ -157,7 +151,5 @@ LIMIT 10"></textarea>
         <button id="export-graph-button" class="button">Export Graph (SVG)</button>
         <button id="reset-app-button" class="button reset-button">Reset All</button>
     </footer>
-
-    <script src="script.js"></script>
 </body>
 </html>

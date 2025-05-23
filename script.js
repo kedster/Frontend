@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Re-render graph if switching to its tab
         if (tabId === 'graph-visualization' && graphData.nodes.length > 0) {
-            renderGraph(rdfStore);
+            renderGraph(graphData);
         }
     }
 
@@ -490,7 +490,7 @@ function generateRDF() {
         const filter = document.getElementById('predicate-filter');
         filter.innerHTML = `<option value="">All predicates</option>` +
             predicates.map(p => `<option value="${p}">${p}</option>`).join('');
-        filter.onchange = () => renderGraph(rdfStore, filter.value);
+        filter.onchange = () => renderGraph(graphData, filter.value);
     }
 
     function renderGraph(data, predicateFilter = "") {
@@ -939,3 +939,5 @@ function generateRDF() {
         }
     });
 });
+console.log("Nodes:", filteredData.nodes.map(n => n.label));
+console.log("Links:", filteredData.links.map(l => [l.source, l.target]));

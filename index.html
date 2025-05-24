@@ -3,199 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSV to RDF Converter & Graph Visualizer</title>
-    <!-- Update your script tags to use modules -->
-    <!-- External dependencies first -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/rdflib@2.2.0/dist/rdflib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    
-    <!-- Your module scripts with type="module" -->
-    <script type="module" src="rdfservice.js"></script>
-    <script type="module" src="script.js"></script>
-    
-    <!-- Your styles -->
+    <title>CSV to RDF Converter</title>
     <link rel="stylesheet" href="style.css">
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <!-- rdflib.js for RDF generation -->
+    <script src="https://unpkg.com/rdflib@2.2.3/dist/rdflib.min.js"></script>
 </head>
 <body>
-    <div id="progress-bar"></div>
-    <header>
-        <h1>CSV to RDF Converter & Graph Visualizer</h1>
-    </header>
+    <div class="container">
+        <h1>CSV to RDF Converter</h1>
 
-    <main>
-        <nav class="left-panel">
-            <button class="nav-button active" data-tab="instructions">Instructions</button>
-            <button class="nav-button" data-tab="input">Input</button>
-            <button class="nav-button" data-tab="configure">Configure</button>
-            <button class="nav-button" data-tab="output">RDF Output</button>
-            <button class="nav-button" data-tab="graph-visualization">Graph Visualization</button>
-            <button class="nav-button" data-tab="sparql-tester">SPARQL Tester</button>
-            <button class="nav-button" data-tab="settings">Settings</button>
-        </nav>
-
-        <div class="content-area">
-            <!-- Instructions Tab -->
-            <section id="instructions" class="tab-content active">
-                <h2>Instructions</h2>
-                <p>Welcome to the CSV to RDF Converter and Graph Visualizer!</p>
-                <ol>
-                    <li>Go to the "Input" tab to upload your CSV file or paste CSV data.</li>
-                    <li>The CSV data will be previewed.</li>
-                    <li>Navigate to the "Configure" tab to map your CSV columns to Subject, Predicate, and Object components of RDF triples. Define your Base URI and Prefixes here.</li>
-                    <li>Once configured, the "RDF Output" tab will display the generated RDF in Turtle format. You can copy or download it.</li>
-                    <li>The "Graph Visualization" tab will show a semantic graph of your RDF data.</li>
-                    <li>Use the "SPARQL Tester" to query your generated RDF graph.</li>
-                    <li>Settings allows you to manage persistent settings.</li>
-                </ol>
-                <p>Use the action buttons at the bottom to Download RDF, Export Graph, or Reset the application.</p>
-            </section>
-
-            <!-- Input Tab -->
-            <section id="input" class="tab-content">
-                <h2>CSV Input</h2>
-                <div id="drop-area" class="file-upload-area">
-                    <p>Drag & drop a CSV file here or</p>
-                    <input type="file" id="csv-file-input" accept=".csv">
-                    <label for="csv-file-input" class="button">Choose File</label>
-                </div>
-                
-                <div class="paste-area">
-                    <h3>Or paste CSV data:</h3>
-                    <textarea id="csv-paste-input" placeholder="Paste CSV data here..."></textarea>
-                    <button id="parse-paste-button" class="button">Parse CSV</button>
-                </div>
-
-                <div class="preview-section">
-                    <h3>CSV Data Preview (First <span id="preview-row-count">5</span> Rows)</h3>
-                    <div id="csv-preview">
-                        <p>No CSV data loaded.</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Configure Tab -->
-            <section id="configure" class="tab-content">
-                <h2>Configure RDF Mapping</h2>
-                <div class="config-section">
-                    <h3>Base URI & Prefixes</h3>
-                    <label for="base-uri">Base URI:</label>
-                    <input type="text" id="base-uri" placeholder="e.g., http://example.org/data/">
-                    <div id="prefixes-container">
-                        <h4>Prefixes:</h4>
-                        <div class="prefix-entry">
-                            <input type="text" class="prefix-name" placeholder="Prefix (e.g., ex)">
-                            <input type="text" class="prefix-uri" placeholder="URI (e.g., http://example.org/ontology/)">
-                            <button class="remove-prefix button-small">Remove</button>
-                        </div>
-                    </div>
-                    <button id="add-prefix-button" class="button-small">Add Prefix</button>
-                </div>
-
-                <div class="config-section">
-                    <h3>Column Mapping</h3>
-                    <p id="mapping-placeholder">Upload CSV to see column mapping options.</p>
-                    <div id="column-mapping-container">
-                        <!-- Mapping dropdowns will be populated here by JS -->
-                    </div>
-                    
-                    <!-- Add this new object type selector -->
-                    <div class="object-type-selector">
-                        <h4>Object Type:</h4>
-                        <div class="radio-group">
-                            <label>
-                                <input type="radio" name="object-type" id="object-type-literal" value="literal" checked>
-                                Literal (String/Number)
-                            </label>
-                            <label>
-                                <input type="radio" name="object-type" id="object-type-uri" value="uri">
-                                URI (Resource)
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <button id="generate-rdf-button" class="button">Generate RDF</button>
-                </div>
-            </section>
-
-            <!-- RDF Output Tab -->
-            <section id="output" class="tab-content">
-                <h2>RDF Output</h2>
-                <div class="output-controls">
-                    <button id="copy-rdf-button" class="button">Copy to Clipboard</button>
-                    <button id="download-rdf-button" class="button">Download RDF</button>
-                </div>
-                <textarea id="rdf-output-editor" readonly></textarea>
-            </section>
-
-            <!-- Graph Visualization Tab -->
-            <section id="graph-visualization" class="tab-content">
-                <h2>Graph Visualization</h2>
-                <div id="graph-message">
-                    Upload CSV, configure mapping, and generate RDF to see the graph.
-                </div>
-              <!--    <div>
-                    <label>
-                        <input type="checkbox" id="rotate-graph-switch">
-                        Rotate Visualization
-                    </label>
-                </div>-->
-                <div id="graph-container" class="graph-container">
-                    <svg id="rdf-graph"></svg>
-                </div>
-
-                <div class="chart-controls">
-                    <div class="button-group">
-                        <button class="chart-btn" data-chart="forceDirected">Force Directed</button>
-                        <button class="chart-btn" data-chart="barChart">Bar Chart</button>
-                        <button class="chart-btn" data-chart="pieChart">Pie Chart</button>
-                        <button class="chart-btn" data-chart="timeSeriesChart">Time Series</button>
-                        <button class="chart-btn" data-chart="histogram">Histogram</button>
-                        <button class="chart-btn" data-chart="linkTypeBreakdown">Link Types</button>
-                        <button class="chart-btn" data-chart="groupSizeChart">Group Sizes</button>
-                    </div>
-                    
-                    <!-- Predicate filter (only for Force Directed Graph) -->
-                    <div class="filter-group" id="predicateFilterContainer" style="display: none;">
-                        <label for="predicateFilter">Filter by Predicate:</label>
-                        <select id="predicateFilter">
-                            <option value="">All Predicates</option>
-                        </select>
-                    </div>
-                </div>
-            </section>
-
-            <!-- SPARQL Tester Tab -->
-            <section id="sparql-tester" class="tab-content">
-                <h2>SPARQL Tester</h2>
-                <textarea id="sparql-query-input" rows="10" placeholder="PREFIX ex: &lt;http://example.org/ontology/&gt;
-SELECT ?s ?p ?o WHERE { ?s ?p ?o . }
-LIMIT 10"></textarea>
-                <button id="execute-sparql-button" class="button">Execute SPARQL Query</button>
-                <h3>SPARQL Results</h3>
-                <div id="sparql-results">
-                    <p>No query executed yet.</p>
-                </div>
-            </section>
-
-            <!-- Settings Tab -->
-            <section id="settings" class="tab-content">
-                <h2>Settings</h2>
-                <p>Settings are automatically saved to your browser's local storage.</p>
-                <div class="setting-item">
-                    <label for="csv-preview-rows">CSV Preview Rows:</label>
-                    <input type="number" id="csv-preview-rows" value="5" min="1" max="50">
-                </div>
-                <p>Click "Reset All" in the bottom bar to clear all saved settings and data.</p>
-            </section>
+        <div class="top-controls">
+            <label for="ontologySelector">Ontology:</label>
+            <select id="ontologySelector"></select>
+            <button id="configureOntologyBtn" class="secondary-btn">Configure Ontology</button>
+            <button id="configureSparqlBtn" class="secondary-btn">Configure SPARQL</button>
+            <label class="file-upload-label">
+                <input type="file" id="csvFileInput" accept=".csv" multiple>
+                <span class="btn primary-btn">+ Upload CSV</span>
+            </label>
         </div>
-    </main>
 
-    <footer class="bottom-bar">
-        <button id="download-all-rdf-button" class="button">Download RDF</button>
-        <button id="export-graph-button" class="button">Export Graph (SVG)</button>
-        <button id="reset-app-button" class="button reset-button">Reset All</button>
-    </footer>
+        <div id="fileDropZone" class="drop-zone">
+            Drag & Drop CSV files here
+        </div>
+
+        <div class="message-area" id="messageArea"></div>
+
+        <div class="tabs-container" id="csvTabsContainer">
+            <!-- CSV tabs will be dynamically inserted here -->
+        </div>
+
+        <div id="csvPreviewArea" class="csv-preview-area">
+            <!-- CSV table previews will be dynamically inserted here -->
+        </div>
+
+        <h2>Relation Mapping</h2>
+        <div id="relationMappingContainer" class="relation-mapping-container">
+            <p>Upload CSVs to define relations.</p>
+            <!-- Relation mapping dropdowns will be dynamically inserted here -->
+        </div>
+        <button id="addMappingBtn" class="secondary-btn" disabled>+ Add Mapping</button>
+
+        <h2>RDF Output</h2>
+        <div class="rdf-output-controls">
+            <label for="rdfFormatSelector">Output Format:</label>
+            <select id="rdfFormatSelector">
+                <option value="Turtle">Turtle</option>
+                <option value="JSON-LD">JSON-LD</option>
+            </select>
+            <button id="generateRdfBtn" class="primary-btn" disabled>Generate RDF</button>
+        </div>
+        <pre id="rdfOutputPreview" class="rdf-output-preview">Generated RDF will appear here.</pre>
+        <div class="action-buttons">
+            <button id="downloadRdfBtn" class="btn" disabled>Download RDF</button>
+            <button id="sendToSparqlBtn" class="btn" disabled>Send to SPARQL Endpoint</button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="sparqlConfigModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" data-modal="sparqlConfigModal">&times;</span>
+            <h3>SPARQL Endpoint Configuration</h3>
+            <form id="sparqlConfigForm">
+                <label for="sparqlUrl">Endpoint URL:</label>
+                <input type="url" id="sparqlUrl" required value="http://localhost:3030/ds/update">
+
+                <label for="sparqlMethod">HTTP Method:</label>
+                <select id="sparqlMethod">
+                    <option value="POST">POST</option>
+                    <option value="GET">GET</option>
+                </select>
+
+                <label for="sparqlHeaders">Headers (JSON, e.g., {"Authorization": "Bearer token"}):</label>
+                <textarea id="sparqlHeaders" rows="4">{}</textarea>
+
+                <label for="sparqlNamedGraph">Named Graph (optional):</label>
+                <input type="text" id="sparqlNamedGraph">
+
+                <button type="submit" class="primary-btn">Save SPARQL Config</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="ontologyConfigModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" data-modal="ontologyConfigModal">&times;</span>
+            <h3>Ontology Configuration</h3>
+            <div id="ontologyConfigPreview">
+                <h4>Currently Selected: <span id="currentOntologyName"></span></h4>
+                <pre id="currentOntologyContent"></pre>
+            </div>
+            <label for="customOntologyInput">Edit/Add Custom Ontology (JSON):</label>
+            <textarea id="customOntologyInput" rows="15" placeholder='{"id": "custom", "name": "Custom Ontology", "prefixes": {"ex": "http://example.org/", "schema": "http://schema.org/"}, "base": "http://example.org/", "classes": [{"name": "Person", "uri": "schema:Person"}, {"name": "Product", "uri": "schema:Product"}], "predicates": [{"name": "hasName", "uri": "schema:name"}, {"name": "hasOrder", "uri": "ex:hasOrder"}]}'></textarea>
+            <button id="saveCustomOntologyBtn" class="primary-btn">Save Custom Ontology</button>
+            <button id="resetOntologiesBtn" class="secondary-btn">Reset to Default</button>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="rdf.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>

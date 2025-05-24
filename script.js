@@ -388,27 +388,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function convertToRDF(data, baseUri, subjectCol, predicateCol, objectCol) {
-        let rdf = '';
-        const prefixes = getPrefixes();
-        
-        // Add prefixes
-        Object.entries(prefixes).forEach(([prefix, uri]) => {
-            rdf += `@prefix ${prefix}: <${uri}> .\n`;
-        });
-        rdf += '\n';
-        
-        // Convert data to RDF
-        data.forEach(row => {
-            const subject = `<${baseUri}${encodeURIComponent(row[subjectCol])}>`;
-            const predicate = row[predicateCol];
-            const object = row[objectCol];
-            
-            rdf += `${subject} ${predicate} "${object}" .\n`;
-        });
-        
-        return rdf;
-    }
+function convertToRDF(data, baseUri, subjectCol, predicateCol, objectCol) {
+    let rdf = '';
+    const prefixes = {
+        ex: 'http://Stocks/Suspensions/',
+        reason: 'http://Stocks/Reason/'
+    };
+    
+    // Add prefixes
+    Object.entries(prefixes).forEach(([prefix, uri]) => {
+        rdf += `@prefix ${prefix}: <${uri}> .\n`;
+    });
+    rdf += '\n';
+    
+    // Convert data to RDF
+    data.forEach(row => {
+        const stockSymbol = row[objectCol];  // e.g. "AILEW"
+        const predicate = row[predicateCol].replace(/\s+/g, '').toLowerCase();  // e.g. Regulatory/Non Compliance -> regulatorynoncompliance
+        rdf += `ex:${stockSymbol} reason:${predicate} "${stockSymbol}" .\n`;
+    });
+    
+    return rdf;
+}
+
 
     function getPrefixes() {
         const prefixes = {};

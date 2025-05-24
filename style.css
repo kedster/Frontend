@@ -138,6 +138,10 @@ textarea {
 
 .button-group {
     margin-top: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
 .reset-button {
@@ -440,6 +444,49 @@ svg text,
 #graph-visualization > div label {
     margin-bottom: 1em;
     display: inline-block;
+}
+
+/* Chart Controls */
+.chart-controls {
+    margin: 20px 0;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 5px;
+}
+
+.chart-btn {
+    padding: 8px 16px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.chart-btn:hover {
+    background-color: #e9ecef;
+}
+
+.chart-btn.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.filter-group {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #ddd;
+}
+
+.filter-group label {
+    margin-right: 10px;
+}
+
+.filter-group select {
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
 }
 
 /* Responsive Adjustments */

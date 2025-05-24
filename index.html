@@ -11,6 +11,8 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+    <script type="module" src="rdfservice.js"></script>
+
     <script src="script.js"></script>
 </head>
 <body>
@@ -127,6 +129,26 @@
                         <li><span class="node-type predicate">Predicate</span></li>
                         <li><span class="node-type object">Object</span></li>
                     </ul>
+                </div>
+
+                <div class="chart-controls">
+                    <div class="button-group">
+                        <button class="chart-btn" data-chart="forceDirected">Force Directed</button>
+                        <button class="chart-btn" data-chart="barChart">Bar Chart</button>
+                        <button class="chart-btn" data-chart="pieChart">Pie Chart</button>
+                        <button class="chart-btn" data-chart="timeSeriesChart">Time Series</button>
+                        <button class="chart-btn" data-chart="histogram">Histogram</button>
+                        <button class="chart-btn" data-chart="linkTypeBreakdown">Link Types</button>
+                        <button class="chart-btn" data-chart="groupSizeChart">Group Sizes</button>
+                    </div>
+                    
+                    <!-- Predicate filter (only for Force Directed Graph) -->
+                    <div class="filter-group" id="predicateFilterContainer" style="display: none;">
+                        <label for="predicateFilter">Filter by Predicate:</label>
+                        <select id="predicateFilter">
+                            <option value="">All Predicates</option>
+                        </select>
+                    </div>
                 </div>
             </section>
 

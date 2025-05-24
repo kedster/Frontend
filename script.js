@@ -1,16 +1,11 @@
+import { GraphService } from './rdfservice.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- Global State Variables ---
     let csvData = [];
     let csvHeaders = [];
     let rdfStore = null; // rdflib.js store
     let graphData = { nodes: [], links: [] };
-    let d3Simulation = null;
-    let d3Svg = null;
-    let d3G = null;
-    let d3Link = null;
-    let d3Node = null;
-    let d3LinkLabel = null;
-    let showingSankey = false; // Track current graph type
 
     // --- DOM Elements ---
     const navButtons = document.querySelectorAll('.nav-button');
@@ -145,9 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
         csvHeaders = [];
         rdfStore = null;
         graphData = { nodes: [], links: [] };
-        d3Simulation = null;
-        d3Svg = null;
-        d3G = null;
 
         // Reset UI elements
         csvPreview.innerHTML = '<p>No CSV data loaded.</p>';
@@ -357,59 +349,60 @@ document.addEventListener('DOMContentLoaded', () => {
         return prefixes;
     }
 
-function generateRDF() {
-    if (csvData.length === 0) {
-        alert('Please upload CSV data first.');
-        showTab('input');
-        return;
-    }
-
-    const subjectCol = document.getElementById('map-subject').value;
-    const predicateCol = document.getElementById('map-predicate').value;
-    const objectCol = document.getElementById('map-object').value;
-    const objectType = document.querySelector('input[name="object-type"]:checked').value;
-
-    const baseURI = baseUriInput.value.endsWith('/') ? baseUriInput.value : baseUriInput.value + '/';
-    const prefixMap = getPrefixMap();
-
-    rdfStore = $rdf.graph();
-
-    csvData.forEach(row => {
-        const subjectValue = row[subjectCol];
-        const predicateValue = row[predicateCol];
-        const objectValue = row[objectCol];
-
-        if (!subjectValue || !predicateValue || !objectValue) return;
-
-        const subjectNode = $rdf.sym(baseURI + encodeURIComponent(subjectValue.trim().replace(/\s+/g, '_')));
-        const predicateNode = $rdf.sym(resolveUri(predicateValue.trim(), prefixMap));
-
-        let objectNode;
-        if (objectType === 'uri') {
-            objectNode = $rdf.sym(resolveUri(objectValue.trim(), prefixMap));
-        } else {
-            objectNode = $rdf.literal(objectValue.trim());
+    function generateRDF() {
+        if (csvData.length === 0) {
+            alert('Please upload CSV data first.');
+            showTab('input');
+            return;
         }
 
-        rdfStore.add(subjectNode, predicateNode, objectNode);
-    });
+        const subjectCol = document.getElementById('map-subject').value;
+        const predicateCol = document.getElementById('map-predicate').value;
+        const objectCol = document.getElementById('map-object').value;
+        const objectType = document.querySelector('input[name="object-type"]:checked').value;
 
-    // Serialize to Turtle
-    const namespaces = {
-        ex: baseURI,
-        rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-        rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
-        owl: 'http://www.w3.org/2002/07/owl#',
-        ...prefixMap
-    };
-    const serializer = new $rdf.Serializer(rdfStore, { namespaces });
-    const rdfString = serializer.statementsToN3(rdfStore.statements);
-    rdfOutputEditor.value = rdfString;
+        const baseURI = baseUriInput.value.endsWith('/') ? baseUriInput.value : baseUriInput.value + '/';
+        const prefixMap = getPrefixMap();
 
-    // Prepare graph data
-    graphData = convertRdfToD3Format(rdfStore);
-    renderGraph(graphData);
-}
+        rdfStore = $rdf.graph();
+
+        csvData.forEach(row => {
+            const subjectValue = row[subjectCol];
+            const predicateValue = row[predicateCol];
+            const objectValue = row[objectCol];
+
+            if (!subjectValue || !predicateValue || !objectValue) return;
+
+            const subjectNode = $rdf.sym(baseURI + encodeURIComponent(subjectValue.trim().replace(/\s+/g, '_')));
+            const predicateNode = $rdf.sym(resolveUri(predicateValue.trim(), prefixMap));
+
+            let objectNode;
+            if (objectType === 'uri') {
+                objectNode = $rdf.sym(resolveUri(objectValue.trim(), prefixMap));
+            } else {
+                objectNode = $rdf.literal(objectValue.trim());
+            }
+
+            rdfStore.add(subjectNode, predicateNode, objectNode);
+        });
+
+        // Serialize to Turtle
+        const namespaces = {
+            ex: baseURI,
+            rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+            rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
+            owl: 'http://www.w3.org/2002/07/owl#',
+            ...prefixMap
+        };
+        const serializer = new $rdf.Serializer(rdfStore, { namespaces });
+        const rdfString = serializer.statementsToN3(rdfStore.statements);
+        rdfOutputEditor.value = rdfString;
+
+        // Update graph visualization using GraphService
+        graphData = graphService.convertRdfToD3Format(rdfStore);
+        graphService.renderChart(graphData, 'forceDirected');
+        updatePredicateOptions(); // Update filter options after loading new data
+    }
 
 
     function resolveUri(uriStr, prefixMap) {
@@ -445,534 +438,60 @@ function generateRDF() {
 
     // --- Graph Visualization ---
 
-    function convertRdfToD3Format(store) {
-        const nodes = [];
-        const links = [];
-        const nodeMap = new Map(); // Map URI/Literal to node object
-        let nodeIdCounter = 0;
+    function initializeGraphControls() {
+        const graphService = new GraphService(document.getElementById('graph-container'));
+        const buttons = document.querySelectorAll('.chart-btn');
+        const predicateFilterContainer = document.getElementById('predicateFilterContainer');
+        const predicateFilter = document.getElementById('predicateFilter');
 
-        store.statements.forEach(st => {
-            const subjectUri = st.subject.value;
-            const predicateUri = st.predicate.value;
-            const objectValue = st.object.value;
-            const isObjectLiteral = st.object.termType === 'Literal';
+        // Get chart renderers from the service
+        const chartRenderers = graphService.getChartRenderers();
 
-            // Add subject node
-            if (!nodeMap.has(subjectUri)) {
-                nodeMap.set(subjectUri, { id: nodeIdCounter++, label: st.subject.uri.split('/').pop().split('#').pop() || subjectUri, uri: subjectUri, type: 'subject' });
-                nodes.push(nodeMap.get(subjectUri));
-            }
+        // Handle button clicks
+        buttons.forEach(button => {
+            button.addEventListener('click', function() {
+                buttons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
 
-            // Add object node
-            const objectKey = isObjectLiteral ? `LITERAL:${objectValue}` : objectValue;
-            if (!nodeMap.has(objectKey)) {
-                nodeMap.set(objectKey, { id: nodeIdCounter++, label: isObjectLiteral ? objectValue : (st.object.uri.split('/').pop().split('#').pop() || objectValue), uri: isObjectLiteral ? null : objectValue, type: isObjectLiteral ? 'literal' : 'object' });
-                nodes.push(nodeMap.get(objectKey));
-            }
+                const chartType = this.dataset.chart;
+                predicateFilterContainer.style.display = 
+                    chartType === 'forceDirected' ? 'block' : 'none';
 
-            // Add link (use label, not id)
-            links.push({
-                source: nodeMap.get(subjectUri).label,
-                target: nodeMap.get(objectKey).label,
-                label: predicateUri.split('/').pop().split('#').pop() || predicateUri,
-                uri: predicateUri,
-                value: 1 // Sankey requires a value
+                if (chartRenderers[chartType]) {
+                    chartRenderers[chartType]();
+                }
             });
         });
 
-        // Deduplicate nodes based on label
-        const uniqueNodes = Array.from(new Map(nodes.map(node => [node.label, node])).values());
+        // Handle predicate filter changes
+        predicateFilter.addEventListener('change', function() {
+            graphService.updatePredicateFilter(this.value);
+        });
 
-        return { nodes: uniqueNodes, links: links };
+        return graphService;
     }
 
-    function updatePredicateFilter(data) {
-        const predicates = Array.from(new Set(data.links.map(l => l.label)));
-        const filter = document.getElementById('predicate-filter');
-        filter.innerHTML = `<option value="">All predicates</option>` +
-            predicates.map(p => `<option value="${p}">${p}</option>`).join('');
-        filter.onchange = () => renderGraph(graphData, filter.value);
-    }
-
-    function renderGraph(data, predicateFilter = "") {
-        if (!data || data.nodes.length === 0) {
-            document.getElementById('graph-message').style.display = 'block';
-            d3.select("#rdf-graph").selectAll("*").remove();
-            return;
-        } else {
-            document.getElementById('graph-message').style.display = 'none';
-        }
-
-        let filteredData = { nodes: [], links: [] };
-
-        if (predicateFilter) {
-            // Filter links by predicate
-            filteredData.links = data.links.filter(l => l.label === predicateFilter);
-            const nodeLabels = new Set(filteredData.links.flatMap(l => [l.source, l.target]));
-            filteredData.nodes = data.nodes.filter(n => nodeLabels.has(n.label));
-        } else {
-            // No filter, use all data
-            filteredData = data;
-        }
-
-        // Debug: log nodes and links
-        console.log("Nodes:", filteredData.nodes.map(n => n.label));
-        console.log("Links:", filteredData.links.map(l => [l.source, l.target]));
-
-        const width = graphContainer.clientWidth;
-        const height = graphContainer.clientHeight;
-
-        // Clear existing SVG content
-        d3.select("#rdf-graph").selectAll("*").remove();
-
-        d3Svg = d3.select("#rdf-graph")
-            .attr("viewBox", [0, 0, width, height]);
-
-        // Add a group for the graph elements that will be transformed by zoom/pan
-        d3G = d3Svg.append("g");
-
-        d3Simulation = d3.forceSimulation(filteredData.nodes)
-            .force("link", d3.forceLink(filteredData.links).id(d => d.label).distance(100))
-            .force("charge", d3.forceManyBody().strength(-300))
-            .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("x", d3.forceX())
-            .force("y", d3.forceY());
-
-        d3Link = d3G.append("g")
-            .attr("stroke", "#999")
-            .attr("stroke-opacity", 0.6)
-            .selectAll("line")
-            .data(filteredData.links)
-            .join("line")
-            .attr("stroke-width", d => Math.sqrt(d.value || 1));
-
-        d3Node = d3G.append("g")
-            .attr("stroke", "#fff")
-            .attr("stroke-width", 1.5)
-            .selectAll("g")
-            .data(filteredData.nodes)
-            .join("g")
-            .attr("class", "node")
-            .call(d3.drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended));
-
-        d3Node.append("circle")
-            .attr("r", 18) // Increased from 10 to 18
-            .attr("fill", d => d.type === 'subject' ? '#4CAF50' : (d.type === 'literal' ? '#FFC107' : '#2196F3'));
-
-        d3Node.append("text")
-            .attr("fill", "#222")
-            .attr("text-anchor", "middle")
-            .attr("alignment-baseline", "middle")
-            .text(d => d.label);
-
-        // After appending text, set rect size based on text
-        d3Node.each(function(d) {
-            const textElem = d3.select(this).select("text").node();
-            const bbox = textElem.getBBox();
-            // Add some padding
-            const paddingX = 16;
-            const paddingY = 10;
-            // Remove any previous rect (if re-rendering)
-            d3.select(this).select("rect").remove();
-            // Insert rect before text
-            d3.select(this)
-                .insert("rect", "text")
-                .attr("x", bbox.x - paddingX / 2)
-                .attr("y", bbox.y - paddingY / 2)
-                .attr("width", bbox.width + paddingX)
-                .attr("height", bbox.height + paddingY)
-                .attr("rx", 8)
-                .attr("fill", d.type === 'subject' ? '#4CAF50' : (d.type === 'literal' ? '#FFC107' : '#2196F3'));
-        });
-
-        d3LinkLabel = d3G.append("g")
-            .attr("class", "link-labels")
-            .selectAll("text")
-            .data(filteredData.links)
-            .join("text")
-            .attr("fill", "#222")
-            .text(d => d.label);
-
-        d3Simulation.on("tick", () => {
-            d3Link
-                .attr("x1", d => d.source.x)
-                .attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x)
-                .attr("y2", d => d.target.y);
-
-            d3LinkLabel
-                .attr("x", d => (d.source.x + d.target.x) / 2)
-                .attr("y", d => (d.source.y + d.target.y) / 2);
-
-            d3Node
-                .attr("transform", d => `translate(${d.x},${d.y})`);
-        });
-
-        // Add zoom and pan functionality
-        const zoom = d3.zoom()
-            .scaleExtent([0.1, 8])
-            .on("zoom", (event) => {
-                d3G.attr("transform", event.transform);
-            });
-        d3Svg.call(zoom);
-
-
-        // Click highlighting
-        d3Node.on("click", (event, d) => {
-            // Clear previous highlights
-            d3Node.classed("highlighted", false);
-            d3Link.classed("highlighted", false);
-            d3LinkLabel.classed("highlighted", false);
-
-            // Highlight clicked node
-            d3.select(event.currentTarget).classed("highlighted", true);
-
-            // Highlight connected links and nodes
-            d3Link.filter(l => l.sourced.label === d.label || l.targetd.label === d.label)
-                .classed("highlighted", true);
-            d3LinkLabel.filter(l => l.sourced.label === d.label || l.targetd.label === d.label)
-                .classed("highlighted", true);
-
-            d3Node.filter(n => {
-                return data.links.some(l =>
-                    (l.source.label === d.label && l.target.label === n.label) ||
-                    (l.target.label === d.label && l.source.label === n.label)
-                );
-            }).classed("highlighted", true);
-        });
-
-        d3Svg.on("click", (event) => {
-            // If click is on SVG itself (not a node/link), clear highlights
-            if (event.target === d3Svg.node() || event.target === d3G.node()) {
-                d3Node.classed("highlighted", false);
-                d3Link.classed("highlighted", false);
-                d3LinkLabel.classed("highlighted", false);
-            }
-        });
-
-        // Add a tooltip div in your HTML (once)
-        const tooltip = d3.select("body").append("div")
-            .attr("class", "d3-tooltip")
-            .style("position", "absolute")
-            .style("z-index", "10")
-            .style("visibility", "hidden")
-            .style("background", "#fff")
-            .style("border", "1px solid #ccc")
-            .style("padding", "5px")
-            .style("border-radius", "4px");
-
-        // In renderGraph, after d3Node and d3Link are created:
-        d3Node.on("mouseover", (event, d) => {
-            tooltip.html(`<strong>${d.label}</strong><br>${d.uri || ''}`)
-                .style("visibility", "visible");
-        }).on("mousemove", (event) => {
-            tooltip.style("top", (event.pageY + 10) + "px")
-                   .style("left", (event.pageX + 10) + "px");
-        }).on("mouseout", () => {
-            tooltip.style("visibility", "hidden");
-        });
-
-        d3Link.on("mouseover", (event, d) => {
-            tooltip.html(`<strong>${d.label}</strong><br>${d.uri || ''}`)
-                .style("visibility", "visible");
-        }).on("mousemove", (event) => {
-            tooltip.style("top", (event.pageY + 10) + "px")
-                   .style("left", (event.pageX + 10) + "px");
-        }).on("mouseout", () => {
-            tooltip.style("visibility", "hidden");
-        });
-
-        function dragstarted(event, d) {
-            if (!event.active) d3Simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-        }
-
-        function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
-        }
-
-        function dragended(event, d) {
-            if (!event.active) d3Simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }
-    }
-
-    function exportGraphAsSvg() {
-        if (!d3Svg) {
-            alert('No graph to export.');
-            return;
-        }
-        const svgString = new XMLSerializer().serializeToString(d3Svg.node());
-        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-        saveAs(blob, 'rdf_graph.svg');
-    }
-
-    function renderSankeyGraph(data) {
-        console.log("SankeyGraph called with:", data);
-        const width = 928;
-        const height = 600;
-        const svg = d3.select("#rdf-graph")
-            .attr("viewBox", [0, 0, width, height])
-            .attr("width", width)
-            .attr("height", height);
-
-        svg.selectAll("*").remove();
-
-        // --- Add Chart Title ---
-        svg.append("text")
-            .attr("x", width / 2)
-            .attr("y", 32)
-            .attr("text-anchor", "middle")
-            .attr("font-size", "2em")
-            .attr("font-weight", "bold")
-            .attr("fill", "#222")
-            .text("Sankey Graph");
-
-        // --- Add Legend ---
-        svg.append("g")
-            .append("text")
-            .attr("x", width - 120)
-            .attr("y", 60)
-            .attr("font-size", "1.1em")
-            .attr("fill", "#222")
-            .text("Legend: Predicate");
-
-        const sankey = d3.sankey()
-            .nodeId(d => d.label)
-            .nodeWidth(15)
-            .nodePadding(10)
-            .extent([[1, 5], [width - 1, height - 5]]);
-
-        const {nodes, links} = sankey({
-            nodes: data.nodes.map(d => Object.assign({}, d)),
-            links: data.links.map(d => Object.assign({}, d))
-        });
-
-        const color = d3.scaleOrdinal(d3.schemeCategory10);
-
-        svg.append("g")
-            .attr("stroke", "#000")
-            .selectAll("rect")
-            .data(nodes)
-            .join("rect")
-            .attr("x", d => d.x0)
-            .attr("y", d => d.y0)
-            .attr("height", d => d.y1 - d.y0)
-            .attr("width", d => d.x1 - d.x0)
-            .attr("fill", d => color(d.type));
-
-        svg.append("g")
-            .attr("fill", "none")
-            .attr("stroke-opacity", 0.5)
-            .selectAll("path")
-            .data(links)
-            .join("path")
-            .attr("d", d3.sankeyLinkHorizontal())
-            .attr("stroke", "#888")
-            .attr("stroke-width", d => Math.max(1, d.width));
-
-        svg.append("g")
-            .selectAll("text")
-            .data(nodes)
-            .join("text")
-            .attr("x", d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
-            .attr("y", d => (d.y1 + d.y0) / 2)
-            .attr("dy", "0.35em")
-            .attr("text-anchor", d => d.x0 < width / 2 ? "start" : "end")
-            .text(d => d.label);
-
-        // Debug: log nodes and links
-        console.log("Sankey nodes:", data.nodes);
-        console.log("Sankey links:", data.links);
-    }
-
-    // --- SPARQL Tester ---
-
-    async function executeSPARQL() {
-        if (!rdfOutputEditor.value.trim()) {
-            alert('No RDF graph loaded. Please generate RDF first.');
-            showTab('output');
-            return;
-        }
-
-        const query = sparqlQueryInput.value;
-        if (!query.trim()) {
-            alert('Please enter a SPARQL query.');
-            return;
-        }
-
-        try {
-            sparqlResultsDiv.innerHTML = '<p>Running query...</p>';
-            const results = await executeComunicaSparql(query, rdfOutputEditor.value);
-            displaySparqlResults(results);
-        } catch (e) {
-            console.error("SPARQL Query Error:", e);
-            sparqlResultsDiv.innerHTML = `<p style="color:red;">Error executing query: ${e.message || e}</p>`;
-        }
-    }
-
-    function displaySparqlResults(results) {
-        if (results.length === 0) {
-            sparqlResultsDiv.innerHTML = '<p>No results found.</p>';
-            return;
-        }
-
-        const variables = Object.keys(results[0]);
-        let tableHtml = '<table><thead><tr>';
-        variables.forEach(v => tableHtml += `<th>?${v}</th>`);
-        tableHtml += '</tr></thead><tbody>';
-
-        results.forEach(row => {
-            tableHtml += '<tr>';
-            variables.forEach(v => tableHtml += `<td>${row[v] || ''}</td>`);
-            tableHtml += '</tr>';
-        });
-        tableHtml += '</tbody></table>';
-        sparqlResultsDiv.innerHTML = tableHtml;
-    }
-
-    function syncMappingFromUI() {
-        const subjectSelect = document.getElementById('map-subject');
-        const predicateSelect = document.getElementById('map-predicate');
-        const objectSelect = document.getElementById('map-object');
-        const staticPredicateInput = document.getElementById('static-predicate-value');
-        const objectTypeUriRadio = document.getElementById('object-type-uri');
-
-        if (subjectSelect && predicateSelect && objectSelect && staticPredicateInput && objectTypeUriRadio) {
-            appSettings.mapping.subject.value = subjectSelect.value;
-            appSettings.mapping.predicate.type = predicateSelect.value.startsWith('static:') ? 'static' : 'column';
-            appSettings.mapping.predicate.value = predicateSelect.value.startsWith('static:') ? staticPredicateInput.value : predicateSelect.value;
-            appSettings.mapping.object.value = objectSelect.value;
-            appSettings.mapping.object.objectType = objectTypeUriRadio.checked ? 'uri' : 'literal';
-            saveSettings();
-        }
-    }
-
-    // --- Event Listeners ---
-
-    // Navigation
-    navButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const tabId = button.dataset.tab;
-            showTab(tabId);
-        });
-    });
-
-    // Input Tab
-    dropArea.addEventListener('dragover', (event) => {
-        event.preventDefault();
-        dropArea.classList.add('highlight');
-    });
-    dropArea.addEventListener('dragleave', () => {
-        dropArea.classList.remove('highlight');
-    });
-    dropArea.addEventListener('drop', (event) => {
-        event.preventDefault();
-        dropArea.classList.remove('highlight');
-        const files = event.dataTransfer.files;
-        if (files.length > 0) {
-            parseCSV(files[0]);
-        }
-    });
-    csvFileInput.addEventListener('change', (event) => {
-        if (event.target.files.length > 0) {
-            parseCSV(event.target.files[0]);
-        }
-    });
-    parsePasteButton.addEventListener('click', () => {
-        const csvString = csvPasteInput.value.trim();
-        if (csvString) {
-            parseCSV(csvString);
-        } else {
-            alert('Please paste CSV data into the text area.');
-        }
-    });
-
-    // Configure Tab
-    baseUriInput.addEventListener('change', saveSettings);
-    addPrefixButton.addEventListener('click', () => {
-        addPrefixEntry();
-        saveSettings();
-    });
-    generateRdfButton.addEventListener('click', () => showTab('output'));
-
-    // Output Tab
-    copyRdfButton.addEventListener('click', copyRDF);
-    downloadRdfButton.addEventListener('click', downloadRDF);
-
-    // SPARQL Tester Tab
-    executeSparqlButton.addEventListener('click', executeSPARQL);
-
-    // Settings Tab
-    csvPreviewRowsInput.addEventListener('change', () => {
-        appSettings.csvPreviewRows = parseInt(csvPreviewRowsInput.value, 10);
-        if (csvData.length > 0) {
-            displayCSVPreview(csvData, appSettings.csvPreviewRows);
-        }
-        saveSettings();
-    });
-
-    // Bottom Bar Actions
-    downloadAllRdfButton.addEventListener('click', downloadRDF); // Re-use existing function
-    exportGraphButton.addEventListener('click', exportGraphAsSvg);
-    resetAppButton.addEventListener('click', resetAll);
-
-    // 1. Define your graph renderers here
-const graphRenderers = [
-    { label: "Force-Directed Graph", render: renderGraph },
-    { label: "Sankey Diagram", render: renderSankeyGraph }
-    // Add more graph types here as needed
-];
-
-// 2. Dynamically create buttons for each graph type
-const graphTypeBar = document.createElement('div');
-graphTypeBar.id = 'graph-type-bar';
-graphTypeBar.style.marginBottom = '10px';
-graphTypeBar.style.display = 'flex';
-graphTypeBar.style.gap = '10px';
-
-graphRenderers.forEach((renderer, idx) => {
-    const btn = document.createElement('button');
-    btn.textContent = renderer.label;
-    btn.className = 'graph-type-btn';
-    if (idx === 0) btn.classList.add('active');
-    btn.addEventListener('click', () => {
-        // Remove active from all buttons
-        document.querySelectorAll('.graph-type-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        // Clear SVG and render selected graph
-        d3.select("#rdf-graph").selectAll("*").remove();
-        renderer.render(graphData);
-    });
-    graphTypeBar.appendChild(btn);
-});
-
-// Insert the bar above the graph container
-graphContainer.parentNode.insertBefore(graphTypeBar, graphContainer);
-
-// 3. Optionally, render the default graph on load
-graphRenderers[0].render(graphData);
-
-// --- Initialization ---
+    // --- Initialization ---
     loadSettings();
     showTab('instructions'); // Show instructions tab by default
 
-    document.getElementById('rotate-graph-switch').addEventListener('change', function(e) {
-        const svg = document.getElementById('rdf-graph');
-        d3.select(svg).selectAll("*").remove();
+    // Initialize graph service
+    const graphService = initializeGraphControls();
 
-        if (e.target.checked) {
-            renderSankeyGraph(graphData);
-        } else {
-            renderGraph(graphData);
+    // Update export graph button to use GraphService
+    exportGraphButton.addEventListener('click', () => graphService.exportGraphAsSvg());
+
+    // Update predicate options helper function
+    function updatePredicateOptions() {
+        const predicates = graphService.getUniquePredicateLabels();
+        const predicateFilter = document.getElementById('predicateFilter');
+        if (predicateFilter) {
+            predicateFilter.innerHTML = '<option value="">All Predicates</option>' +
+                predicates.map(pred => 
+                    `<option value="${pred}">${pred}</option>`
+                ).join('');
         }
-    });
+    }
 });
 
 async function executeComunicaSparql(query, turtleText) {

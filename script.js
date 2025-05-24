@@ -64,25 +64,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Utility Functions ---
 
     function showTab(tabId) {
-        tabContents.forEach(content => {
-            content.classList.remove('active');
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
         });
-        navButtons.forEach(button => {
+        
+        // Remove active class from all nav buttons
+        document.querySelectorAll('.nav-button').forEach(button => {
             button.classList.remove('active');
         });
-
-        document.getElementById(tabId).classList.add('active');
-        document.querySelector(`.nav-button[data-tab="${tabId}"]`).classList.add('active');
-
-        // If switching to RDF Output, sync mapping and generate RDF
-        if (tabId === 'output') {
-            syncMappingFromUI();
-            generateRDF();
+        
+        // Show the selected tab content
+        const selectedTab = document.getElementById(tabId);
+        if (selectedTab) {
+            selectedTab.classList.add('active');
         }
-
-        // Re-render graph if switching to its tab
-        if (tabId === 'graph-visualization' && graphData.nodes.length > 0) {
-            renderGraph(graphData);
+        
+        // Add active class to the corresponding nav button
+        const activeButton = document.querySelector(`.nav-button[data-tab="${tabId}"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
         }
     }
 

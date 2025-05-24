@@ -58,9 +58,8 @@ main {
 }
 
 .nav-button.active {
-    background-color: var(--primary-dark-color);
+    background-color: #007bff;
     color: white;
-    font-weight: bold;
 }
 
 .content-area {
@@ -75,6 +74,7 @@ main {
 
 .tab-content {
     display: none;
+    padding: 20px;
 }
 
 .tab-content.active {

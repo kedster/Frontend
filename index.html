@@ -2,31 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CSV SQL Query Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CSV SQL Query Tool - 5 File Upload</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
     <h1>CSV SQL Query Tool</h1>
-    <p>Drop CSV files or browse to upload. Tables are created in memory. Query them with SQL below.</p>
+    <p>Upload up to 5 CSV files. Status shown for each file.</p>
   </header>
 
   <section id="uploadSection">
-    <div id="dropZone">📂 Drag & Drop CSV Files Here</div>
-    <p>or</p>
-    <input type="file" id="fileInput" multiple accept=".csv" />
+    <form id="fileUploadForm">
+      <div class="file-upload-row">
+        <label for="file1">CSV File 1:</label>
+        <input type="file" id="file1" accept=".csv" />
+        <span id="status1" class="file-status-text"></span>
+      </div>
+      <div class="file-upload-row">
+        <label for="file2">CSV File 2:</label>
+        <input type="file" id="file2" accept=".csv" />
+        <span id="status2" class="file-status-text"></span>
+      </div>
+      <div class="file-upload-row">
+        <label for="file3">CSV File 3:</label>
+        <input type="file" id="file3" accept=".csv" />
+        <span id="status3" class="file-status-text"></span>
+      </div>
+      <div class="file-upload-row">
+        <label for="file4">CSV File 4:</label>
+        <input type="file" id="file4" accept=".csv" />
+        <span id="status4" class="file-status-text"></span>
+      </div>
+      <div class="file-upload-row">
+        <label for="file5">CSV File 5:</label>
+        <input type="file" id="file5" accept=".csv" />
+        <span id="status5" class="file-status-text"></span>
+      </div>
+    </form>
+    <button id="createDbBtn" disabled>Create Database and Preview Tables</button>
   </section>
 
   <section id="querySection">
     <textarea id="sql" placeholder="Enter SQL query here... Example: SELECT * FROM your_table LIMIT 10;"></textarea>
-    <button onclick="runQuery()">Run SQL Query</button>
+    <button id="runQueryBtn" disabled>Run SQL Query</button>
     <div id="results"></div>
   </section>
 
   <section id="tablesDisplay">
     <h2>Loaded Tables</h2>
-    <!-- Tables will be dynamically inserted here -->
   </section>
 
   <footer>

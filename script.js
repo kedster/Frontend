@@ -1,133 +1,95 @@
-import initSqlJs from "https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/sql-wasm.js";
+let SQL;
+let db = null;
 
-let db;
+// Map to hold uploaded files data keyed by file input id (file1..file5)
+const filesData = new Map();
 
-const dropZone = document.getElementById("dropZone");
-const tablesDisplay = document.getElementById("tablesDisplay");
-const results = document.getElementById("results");
+const createDbBtn = document.getElementById('createDbBtn');
+const runQueryBtn = document.getElementById('runQueryBtn');
+const tablesDisplay = document.getElementById('tablesDisplay');
+const resultsDiv = document.getElementById('results');
+const sqlTextarea = document.getElementById('sql');
 
-initSqlJs({ locateFile: filename => `https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/${filename}` }).then(SQL => {
-  db = new SQL.Database();
-
-  dropZone.addEventListener("dragover", e => {
-    e.preventDefault();
-    dropZone.style.borderColor = "blue";
+async function initSqlJs() {
+  SQL = await initSqlJs({
+    locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
   });
+  // Enable upload button once SQL.js is ready
+  updateCreateDbButtonState();
+}
 
-  dropZone.addEventListener("dragleave", e => {
-    dropZone.style.borderColor = "#ccc";
-  });
+initSqlJs();
 
-  dropZone.addEventListener("drop", async e => {
-    e.preventDefault();
-    dropZone.style.borderColor = "#ccc";
-    const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith(".csv"));
+function updateCreateDbButtonState() {
+  createDbBtn.disabled = filesData.size === 0;
+}
 
-    for (const file of files) {
-      const text = await file.text();
-      const tableName = sanitizeTableName(file.name.replace(".csv", ""));
-      const rows = parseCSV(text);
+function updateRunQueryButtonState(enabled) {
+  runQueryBtn.disabled = !enabled;
+}
 
-      if (rows.length === 0) continue;
+// Attach change event listeners to the 5 file inputs
+for (let i = 1; i <= 5; i++) {
+  const input = document.getElementById(`file${i}`);
+  const statusSpan = document.getElementById(`status${i}`);
 
-      const columns = Object.keys(rows[0]);
-      const createStmt = `CREATE TABLE "${tableName}" (${columns.map(c => `"${c}" TEXT`).join(", ")})`;
-      db.run(createStmt);
-
-      const insertStmt = db.prepare(`INSERT INTO "${tableName}" VALUES (${columns.map(() => '?').join(",")})`);
-      rows.forEach(row => insertStmt.run(columns.map(col => row[col])));
-      insertStmt.free();
-
-      renderTable(tableName, rows);
-    }
-  });
-});
-
-function runQuery() {
-  const sql = document.getElementById("sql").value;
-  results.innerHTML = "";
-  try {
-    const res = db.exec(sql);
-    if (res.length === 0) {
-      results.innerHTML = "<p>No results.</p>";
+  input.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) {
+      filesData.delete(input.id);
+      statusSpan.textContent = '';
+      statusSpan.className = 'file-status-text';
+      updateCreateDbButtonState();
       return;
     }
 
-    const table = document.createElement("table");
-    const thead = document.createElement("thead");
-    const headerRow = document.createElement("tr");
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      statusSpan.textContent = 'Error: Not a CSV file';
+      statusSpan.className = 'file-status-text error';
+      filesData.delete(input.id);
+      updateCreateDbButtonState();
+      return;
+    }
 
-    res[0].columns.forEach(col => {
-      const th = document.createElement("th");
-      th.textContent = col;
-      headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement("tbody");
-    res[0].values.forEach(row => {
-      const tr = document.createElement("tr");
-      row.forEach(val => {
-        const td = document.createElement("td");
-        td.textContent = val;
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    results.appendChild(table);
-  } catch (err) {
-    results.innerHTML = `<p class="error">${err.message}</p>`;
-  }
-}
-
-function sanitizeTableName(name) {
-  return name.replace(/[^a-zA-Z0-9_]/g, "_");
-}
-
-function parseCSV(csv) {
-  const [headerLine, ...lines] = csv.trim().split("\n");
-  const headers = headerLine.split(",").map(h => h.trim());
-
-  return lines.map(line => {
-    const values = line.split(",").map(v => v.trim());
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = values[i]);
-    return obj;
+    const reader = new FileReader();
+    reader.onload = event => {
+      filesData.set(input.id, { name: file.name, content: event.target.result });
+      statusSpan.textContent = 'Loaded Successfully';
+      statusSpan.className = 'file-status-text success';
+      updateCreateDbButtonState();
+    };
+    reader.onerror = () => {
+      statusSpan.textContent = 'Error reading file';
+      statusSpan.className = 'file-status-text error';
+      filesData.delete(input.id);
+      updateCreateDbButtonState();
+    };
+    reader.readAsText(file);
   });
 }
 
-function renderTable(tableName, data) {
-  const tableWrapper = document.createElement("div");
-  const h2 = document.createElement("h2");
-  h2.textContent = `Table: ${tableName}`;
-  tableWrapper.appendChild(h2);
+// Simple CSV parser
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+  if (lines.length === 0) return { columns: [], rows: [] };
 
-  const table = document.createElement("table");
-  const thead = document.createElement("thead");
-  const headerRow = document.createElement("tr");
+  const rows = [];
+  const columns = [];
 
-  Object.keys(data[0]).forEach(key => {
-    const th = document.createElement("th");
-    th.textContent = key;
-    headerRow.appendChild(th);
-  });
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-
-  const tbody = document.createElement("tbody");
-  data.forEach(row => {
-    const tr = document.createElement("tr");
-    Object.values(row).forEach(val => {
-      const td = document.createElement("td");
-      td.textContent = val;
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-
-  tableWrapper.appendChild(table);
-  tablesDisplay.appendChild(tableWrapper);
-}
+  function splitCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"' && (i === 0 || line[i-1] !== '\\')) {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim().replace(/^"|"$/g, ''));
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim().replace(/^"|"$/g, ''));
+    return result

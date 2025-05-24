@@ -1,81 +1,133 @@
+import initSqlJs from "https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/sql-wasm.js";
+
 let db;
-let uploadedCSVData;
-let uploadedCSVCols;
 
-initSqlJs({ locateFile: filename => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${filename}` })
-  .then(SQL => db = new SQL.Database());
+const dropZone = document.getElementById("dropZone");
+const tablesDisplay = document.getElementById("tablesDisplay");
+const results = document.getElementById("results");
 
-function loadCSV() {
-  const file = document.getElementById('csvFile').files[0];
-  if (!file) {
-    alert("Please upload a CSV file first.");
-    return;
-  }
+initSqlJs({ locateFile: filename => `https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/${filename}` }).then(SQL => {
+  db = new SQL.Database();
 
-  Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
-    complete: function (results) {
-      const data = results.data;
-      const cols = results.meta.fields;
+  dropZone.addEventListener("dragover", e => {
+    e.preventDefault();
+    dropZone.style.borderColor = "blue";
+  });
 
-      if (!data.length || !cols.length) {
-        alert('CSV contains no data!');
-        return;
-      }
+  dropZone.addEventListener("dragleave", e => {
+    dropZone.style.borderColor = "#ccc";
+  });
 
-      uploadedCSVData = data;
-      uploadedCSVCols = cols;
+  dropZone.addEventListener("drop", async e => {
+    e.preventDefault();
+    dropZone.style.borderColor = "#ccc";
+    const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith(".csv"));
 
-      const colDefs = cols.map(c => `"${c}" TEXT`).join(", ");
-      db.run("DROP TABLE IF EXISTS my_table;");
-      db.run(`CREATE TABLE my_table (${colDefs});`);
+    for (const file of files) {
+      const text = await file.text();
+      const tableName = sanitizeTableName(file.name.replace(".csv", ""));
+      const rows = parseCSV(text);
 
-      const stmt = db.prepare(
-        `INSERT INTO my_table (${cols.map(c => `"${c}"`).join(", ")}) VALUES (${cols.map(() => "?").join(", ")});`
-      );
+      if (rows.length === 0) continue;
 
-      db.run("BEGIN TRANSACTION;");
-      data.forEach(row => stmt.run(cols.map(c => row[c])));
-      db.run("COMMIT;");
-      stmt.free();
+      const columns = Object.keys(rows[0]);
+      const createStmt = `CREATE TABLE "${tableName}" (${columns.map(c => `"${c}" TEXT`).join(", ")})`;
+      db.run(createStmt);
 
-      displayTable(data, cols);
+      const insertStmt = db.prepare(`INSERT INTO "${tableName}" VALUES (${columns.map(() => '?').join(",")})`);
+      rows.forEach(row => insertStmt.run(columns.map(col => row[col])));
+      insertStmt.free();
+
+      renderTable(tableName, rows);
     }
   });
-}
-
-function displayTable(data, cols) {
-  let html = '<table><thead><tr>';
-  html += cols.map(col => `<th>${col}</th>`).join('');
-  html += '</tr></thead><tbody>';
-  data.forEach(row => {
-    html += '<tr>' + cols.map(c => `<td>${row[c]}</td>`).join('') + '</tr>';
-  });
-  html += '</tbody></table>';
-  document.getElementById('results').innerHTML = html;
-}
+});
 
 function runQuery() {
-  const sql = document.getElementById('sqlQuery').value;
-  let html = '';
-
+  const sql = document.getElementById("sql").value;
+  results.innerHTML = "";
   try {
     const res = db.exec(sql);
-    if (!res.length) {
-      html = '<p>No results or empty query.</p>';
-    } else {
-      res.forEach(table => {
-        html += '<table><thead><tr>' + table.columns.map(col => `<th>${col}</th>`).join('') + '</tr></thead><tbody>';
-        table.values.forEach(row => {
-          html += '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>';
-        });
-        html += '</tbody></table>';
-      });
+    if (res.length === 0) {
+      results.innerHTML = "<p>No results.</p>";
+      return;
     }
-  } catch (err) {
-    html = `<p class="error">SQL Error: ${err.message}</p>`;
-  }
 
-  document.getElementById('results').innerHTML = html;
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+
+    res[0].columns.forEach(col => {
+      const th = document.createElement("th");
+      th.textContent = col;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    res[0].values.forEach(row => {
+      const tr = document.createElement("tr");
+      row.forEach(val => {
+        const td = document.createElement("td");
+        td.textContent = val;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    results.appendChild(table);
+  } catch (err) {
+    results.innerHTML = `<p class="error">${err.message}</p>`;
+  }
+}
+
+function sanitizeTableName(name) {
+  return name.replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
+function parseCSV(csv) {
+  const [headerLine, ...lines] = csv.trim().split("\n");
+  const headers = headerLine.split(",").map(h => h.trim());
+
+  return lines.map(line => {
+    const values = line.split(",").map(v => v.trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = values[i]);
+    return obj;
+  });
+}
+
+function renderTable(tableName, data) {
+  const tableWrapper = document.createElement("div");
+  const h2 = document.createElement("h2");
+  h2.textContent = `Table: ${tableName}`;
+  tableWrapper.appendChild(h2);
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+
+  Object.keys(data[0]).forEach(key => {
+    const th = document.createElement("th");
+    th.textContent = key;
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  data.forEach(row => {
+    const tr = document.createElement("tr");
+    Object.values(row).forEach(val => {
+      const td = document.createElement("td");
+      td.textContent = val;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+
+  tableWrapper.appendChild(table);
+  tablesDisplay.appendChild(tableWrapper);
 }

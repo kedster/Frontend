@@ -1,22 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>CSV to SQL POC</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CSV SQL Query Tool</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>CSV SQL Test App</h1>
+  <header>
+    <h1>CSV SQL Query Tool</h1>
+    <p>Drop CSV files or browse to upload. Tables are created in memory. Query them with SQL below.</p>
+  </header>
 
-  <input type="file" id="csvFile" accept=".csv" />
-  <button onclick="loadCSV()">Load CSV to DB</button>
+  <section id="uploadSection">
+    <div id="dropZone">📂 Drag & Drop CSV Files Here</div>
+    <p>or</p>
+    <input type="file" id="fileInput" multiple accept=".csv" />
+  </section>
 
-  <textarea id="sqlQuery" rows="4" placeholder="Enter SQL query here...">SELECT * FROM my_table LIMIT 10;</textarea>
-  <button onclick="runQuery()">Run SQL Query</button>
+  <section id="querySection">
+    <textarea id="sql" placeholder="Enter SQL query here... Example: SELECT * FROM your_table LIMIT 10;"></textarea>
+    <button onclick="runQuery()">Run SQL Query</button>
+    <div id="results"></div>
+  </section>
 
-  <div id="results"></div>
+  <section id="tablesDisplay">
+    <h2>Loaded Tables</h2>
+    <!-- Tables will be dynamically inserted here -->
+  </section>
+
+  <footer>
+    <p>Built with <a href="https://sql.js.org" target="_blank">sql.js</a> – All processing is done in memory.</p>
+  </footer>
 
   <script src="script.js"></script>
 </body>

@@ -337,11 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
         rdfStore = $rdf.graph();
         console.log('RDF Store initialized');
 
-        // Get mapping selections
-        const subjectCol = document.getElementById('subject-column').value;
-        const predicateCol = document.getElementById('predicate-column').value;
-        const objectCol = document.getElementById('object-column').value;
-
         if (!subjectCol || !predicateCol || !objectCol) {
             alert('Please select columns for Subject, Predicate, and Object');
             return;

@@ -15,10 +15,10 @@ const GraphTypes = {
     GROUP_SIZE: 'groupSizeChart',
     // SANKEY type has been removed
 };
-function getNodeTypes(subjectCol, objectCol) {
+function getNodeTypes(subject, object) {
     return {
-        SUBJECT: subjectCol,
-        OBJECT: objectCol,
+        SUBJECT: subject,
+        OBJECT: object,
         LITERAL: 'literal',
     };
 }

@@ -171,71 +171,86 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- CSV Handling ---
 
-    function parseCSV(fileOrString) {
-        if (typeof fileOrString === 'string') {
-            // Parse CSV string directly
-            Papa.parse(fileOrString, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    if (results.errors.length) {
-                        console.error("CSV Parsing errors:", results.errors);
-                        alert("Error parsing CSV: " + results.errors[0].message);
-                        return;
-                    }
-                    csvData = results.data;
-                    csvHeaders = results.meta.fields;
-                    displayCSVPreview(csvData, appSettings.csvPreviewRows);
-                    renderMappingInterface(csvHeaders);
-                    saveSettings();
-                }
-            });
-        } else if (fileOrString instanceof File) {
-            // Read file as text, then parse
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                Papa.parse(e.target.result, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        if (results.errors.length) {
-                            console.error("CSV Parsing errors:", results.errors);
-                            alert("Error parsing CSV: " + results.errors[0].message);
-                            return;
-                        }
-                        csvData = results.data;
-                        csvHeaders = results.meta.fields;
-                        displayCSVPreview(csvData, appSettings.csvPreviewRows);
-                        renderMappingInterface(csvHeaders);
-                        saveSettings();
-                    }
-                });
-            };
-            reader.readAsText(fileOrString);
-        }
-    }
-
-    function displayCSVPreview(data, numRows) {
-        if (data.length === 0) {
-            csvPreview.innerHTML = '<p>No CSV data loaded.</p>';
+    function handleFileUpload(file) {
+        if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
+            alert('Please upload a CSV file');
             return;
         }
 
-        let tableHtml = '<table><thead><tr>';
-        csvHeaders.forEach(header => {
-            tableHtml += `<th>${header}</th>`;
-        });
-        tableHtml += '</tr></thead><tbody>';
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                parseCSV(e.target.result);
+            } catch (error) {
+                console.error('Error reading CSV:', error);
+                alert('Error reading CSV file. Please check the file format.');
+            }
+        };
+        reader.onerror = (error) => {
+            console.error('FileReader error:', error);
+            alert('Error reading file. Please try again.');
+        };
+        reader.readAsText(file);
+    }
 
-        data.slice(0, numRows).forEach(row => {
-            tableHtml += '<tr>';
-            csvHeaders.forEach(header => {
-                tableHtml += `<td>${row[header] || ''}</td>`;
-            });
-            tableHtml += '</tr>';
+    function parseCSV(csvText) {
+        Papa.parse(csvText, {
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                if (results.errors.length > 0) {
+                    console.error('CSV parsing errors:', results.errors);
+                    alert('Error parsing CSV: ' + results.errors[0].message);
+                    return;
+                }
+                
+                if (!results.data || results.data.length === 0) {
+                    alert('No valid data found in CSV');
+                    return;
+                }
+
+                csvData = results.data;
+                csvHeaders = results.meta.fields;
+                updateCSVPreview();
+                renderMappingInterface(csvHeaders); // Update mapping interface with new headers
+                showTab('input');
+            },
+            error: function(error) {
+                console.error('PapaParse error:', error);
+                alert('Error parsing CSV data. Please check the format.');
+            }
         });
-        tableHtml += '</tbody></table>';
-        csvPreview.innerHTML = tableHtml;
+    }
+
+    function updateCSVPreview() {
+        const previewDiv = document.getElementById('csv-preview');
+        const previewRows = parseInt(document.getElementById('csv-preview-rows').value) || 5;
+        
+        if (!csvData || csvData.length === 0) {
+            previewDiv.innerHTML = '<p>No CSV data loaded.</p>';
+            return;
+        }
+
+        // Create table
+        let tableHTML = '<table class="preview-table"><thead><tr>';
+        
+        // Add headers
+        csvHeaders.forEach(header => {
+            tableHTML += `<th>${header}</th>`;
+        });
+        tableHTML += '</tr></thead><tbody>';
+
+        // Add rows
+        csvData.slice(0, previewRows).forEach(row => {
+            tableHTML += '<tr>';
+            csvHeaders.forEach(header => {
+                tableHTML += `<td>${row[header] || ''}</td>`;
+            });
+            tableHTML += '</tr>';
+        });
+
+        tableHTML += '</tbody></table>';
+        previewDiv.innerHTML = tableHTML;
     }
 
     // --- Configure Tab (Mapping & Prefixes) ---
@@ -504,6 +519,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Show initial tab
     showTab('instructions');
+
+    // File Upload Event Listeners
+    dropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropArea.classList.add('dragover');
+    });
+
+    dropArea.addEventListener('dragleave', () => {
+        dropArea.classList.remove('dragover');
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropArea.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFileUpload(file);
+    });
+
+    // File input change handler
+    csvFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleFileUpload(file);
+    });
+
+    // Parse pasted CSV data
+    parsePasteButton.addEventListener('click', () => {
+        const pastedData = csvPasteInput.value.trim();
+        if (pastedData) {
+            parseCSV(pastedData);
+        } else {
+            alert('Please paste some CSV data first');
+        }
+    });
 });
 
 async function executeComunicaSparql(query, turtleText) {

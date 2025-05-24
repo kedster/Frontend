@@ -196,6 +196,30 @@ textarea {
     font-weight: bold;
 }
 
+/* CSV Preview Table Styles */
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    background: white;
+}
+
+.preview-table th,
+.preview-table td {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+}
+
+.preview-table th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+}
+
+.preview-table tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
 /* Configure Tab Specific */
 .config-section {
     background-color: #fafbfc;

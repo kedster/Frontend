@@ -54,20 +54,24 @@
 
             <!-- Input Tab -->
             <section id="input" class="tab-content">
-                <h2>Input CSV Data</h2>
-                <div class="file-upload-area" id="drop-area">
-                    <p>Drag & Drop CSV file here, or</p>
+                <h2>CSV Input</h2>
+                <div id="drop-area" class="file-upload-area">
+                    <p>Drag & drop a CSV file here or</p>
                     <input type="file" id="csv-file-input" accept=".csv">
-                    <label for="csv-file-input" class="button">Select File</label>
+                    <label for="csv-file-input" class="button">Choose File</label>
                 </div>
+                
                 <div class="paste-area">
-                    <p>Or paste CSV data:</p>
-                    <textarea id="csv-paste-input" rows="10" placeholder="Paste your CSV data here..."></textarea>
-                    <button id="parse-paste-button" class="button">Parse Pasted Data</button>
+                    <h3>Or paste CSV data:</h3>
+                    <textarea id="csv-paste-input" placeholder="Paste CSV data here..."></textarea>
+                    <button id="parse-paste-button" class="button">Parse CSV</button>
                 </div>
-                <h3>CSV Data Preview (First 5 Rows)</h3>
-                <div id="csv-preview">
-                    <p>No CSV data loaded.</p>
+
+                <div class="preview-section">
+                    <h3>CSV Data Preview (First <span id="preview-row-count">5</span> Rows)</h3>
+                    <div id="csv-preview">
+                        <p>No CSV data loaded.</p>
+                    </div>
                 </div>
             </section>
 

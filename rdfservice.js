@@ -150,8 +150,20 @@ export class GraphService {
     renderChart(graphData, chartType, predicateFilter = '') {
         console.log(`Rendering chart: ${chartType}`);
         console.log('Data:', graphData);
-        console.log('Predicate filter:', predicateFilter);
         
+        // Validate data
+        if (!graphData || !graphData.nodes || !graphData.links) {
+            console.error('Invalid graph data structure:', graphData);
+            this._displayFallbackMessage('Invalid data structure for visualization');
+            return;
+        }
+
+        if (graphData.nodes.length === 0 && graphData.links.length === 0) {
+            console.warn('Empty graph data');
+            this._displayFallbackMessage('No data available for visualization');
+            return;
+        }
+
         // Clear existing visualization
         const svg = d3.select('#rdf-graph');
         svg.selectAll('*').remove();
@@ -193,8 +205,7 @@ export class GraphService {
             }
         } catch (error) {
             console.error('Error rendering chart:', error);
-            this._displayFallbackMessage(`Error rendering ${chartType} chart: ${error.message}`);
-            throw error;
+            this._displayFallbackMessage(`Error rendering ${chartType}: ${error.message}`);
         }
     }
 

@@ -105,8 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (subjectSelect && predicateSelect && objectSelect) {
                 appSettings.mapping.subject.value = subjectSelect.value;
-                appSettings.mapping.predicate.type = predicateSelect.value.startsWith('static:') ? 'static' : 'column';
-                appSettings.mapping.predicate.value = predicateSelect.value.startsWith('static:') ? staticPredicateInput.value : predicateSelect.value;
+                appSettings.mapping.predicate.type = predicateSelect.value.startsWith('static') ? 'static' : 'column';
+                appSettings.mapping.predicate.value = predicateSelect.value.startsWith('static') ? staticPredicateInput.value : predicateSelect.value;
                 appSettings.mapping.object.value = objectSelect.value;
                 appSettings.mapping.object.objectType = objectTypeUriRadio.checked ? 'uri' : 'literal';
             }
@@ -324,15 +324,47 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function generateRDF(subjectCol, predicateCol, objectCol) {
+        if (!csvData || csvData.length === 0) {
+            alert('No CSV data loaded');
+            return;
+        }
+
+        console.log('Generating RDF from CSV data:', csvData);
+
         const baseUri = document.getElementById('base-uri').value.trim() || 'http://example.org/data/';
-        const rdf = convertToRDF(csvData, baseUri, subjectCol, predicateCol, objectCol);
         
-        // Update RDF output
-        const rdfOutput = document.getElementById('rdf-output-editor');
-        rdfOutput.value = rdf;
-        
-        // Switch to output tab
-        showTab('output');
+        // Initialize RDF store
+        rdfStore = $rdf.graph();
+        console.log('RDF Store initialized');
+
+        // Get mapping selections
+        const subjectCol = document.getElementById('subject-column').value;
+        const predicateCol = document.getElementById('predicate-column').value;
+        const objectCol = document.getElementById('object-column').value;
+
+        if (!subjectCol || !predicateCol || !objectCol) {
+            alert('Please select columns for Subject, Predicate, and Object');
+            return;
+        }
+
+        console.log('Using mapping:', { subjectCol, predicateCol, objectCol });
+
+        // Convert CSV to RDF
+        csvData.forEach((row, index) => {
+            const subject = $rdf.sym(baseUri + encodeURIComponent(row[subjectCol]));
+            const predicate = $rdf.sym(baseUri + encodeURIComponent(row[predicateCol]));
+            const object = $rdf.lit(row[objectCol]); // Using literal for object values
+
+            rdfStore.add(subject, predicate, object);
+        });
+
+        console.log('RDF Store after conversion:', rdfStore);
+
+        // Update graph visualization
+        updateGraphVisualization(rdfStore);
+
+        // Switch to visualization tab
+        showTab('graph-visualization');
     }
 
     function convertToRDF(data, baseUri, subjectCol, predicateCol, objectCol) {
@@ -492,14 +524,61 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Call this when RDF data is generated
     function updateGraphVisualization(rdfData) {
-        const graphService = initializeGraphVisualization();
-        graphService.renderChart(rdfData, 'forceDirected');
+        console.log('Updating graph visualization with data:', rdfData);
         
-        // Update predicate filter options
-        const predicates = graphService.getUniquePredicateLabels();
-        const predicateFilter = document.getElementById('predicateFilter');
-        predicateFilter.innerHTML = '<option value="">All Predicates</option>' +
-            predicates.map(pred => `<option value="${pred}">${pred}</option>`).join('');
+        // Convert RDF to graph format
+        const graphData = convertRdfToGraphData(rdfStore);
+        console.log('Converted graph data:', graphData);
+        
+        // Initialize graph service and render
+        const graphService = initializeGraphVisualization();
+        graphService.renderChart(graphData, 'forceDirected');
+    }
+
+    // Add this conversion function
+    function convertRdfToGraphData(rdfStore) {
+        console.log('Converting RDF store to graph data...');
+        console.log('RDF Store:', rdfStore);
+
+        const nodes = new Map();
+        const links = [];
+
+        // Get all statements from RDF store
+        const statements = rdfStore.statements;
+        console.log('RDF Statements:', statements);
+
+        // Process each statement
+        statements.forEach(stmt => {
+            // Add subject node if not exists
+            if (!nodes.has(stmt.subject.value)) {
+                nodes.set(stmt.subject.value, {
+                    id: stmt.subject.value,
+                    label: stmt.subject.value.split('/').pop(),
+                    type: 'subject'
+                });
+            }
+
+            // Add object node if not exists
+            if (!nodes.has(stmt.object.value)) {
+                nodes.set(stmt.object.value, {
+                    id: stmt.object.value,
+                    label: stmt.object.value.split('/').pop(),
+                    type: stmt.object.termType === 'Literal' ? 'literal' : 'object'
+                });
+            }
+
+            // Add link
+            links.push({
+                source: stmt.subject.value,
+                target: stmt.object.value,
+                label: stmt.predicate.value.split('/').pop()
+            });
+        });
+
+        return {
+            nodes: Array.from(nodes.values()),
+            links: links
+        };
     }
 
     // --- Initialization ---

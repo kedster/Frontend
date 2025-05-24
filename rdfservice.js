@@ -15,13 +15,13 @@ const GraphTypes = {
     GROUP_SIZE: 'groupSizeChart',
     // SANKEY type has been removed
 };
-
-const NodeTypes = {
-    SUBJECT: 'subject',
-    OBJECT: 'object',
-    LITERAL: 'literal',
-};
-
+function getNodeTypes(subjectCol, objectCol) {
+    return {
+        SUBJECT: subjectCol,
+        OBJECT: objectCol,
+        LITERAL: 'literal',
+    };
+}
 // Ensure d3 is available globally from CDN
 const d3 = window.d3;
 

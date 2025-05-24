@@ -148,58 +148,48 @@ export class GraphService {
      * @param {string} [predicateFilter=''] - Optional predicate label to filter links by (primarily for force-directed).
      */
     renderChart(graphData, chartType, predicateFilter = '') {
-        // Store the data and current chart type for potential re-rendering or filtering
+        console.log(`Rendering chart: ${chartType}`);
+        console.log('Data:', graphData);
+        console.log('Predicate filter:', predicateFilter);
+        
+        // Clear existing visualization
+        const svg = d3.select('#rdf-graph');
+        svg.selectAll('*').remove();
+        
+        // Store current state
         this._currentGraphData = graphData;
         this._currentChartType = chartType;
         this._currentPredicateFilter = predicateFilter;
-
-        this.clearGraph(); // Clear existing graph/chart before rendering new one
-
-        if (!graphData || !graphData.nodes || graphData.nodes.length === 0) {
-            this._displayFallbackMessage("No data available to render the chart.");
-            return;
-        }
-
-        // Apply predicate filter FOR FORCE_DIRECTED chart only.
-        // Other charts will use the full data and calculate aggregates.
-        let dataToRender = { ...graphData }; // Clone to avoid modifying original input
-        if (chartType === GraphTypes.FORCE_DIRECTED && predicateFilter) {
-            const filteredLinks = graphData.links.filter(l => l.label === predicateFilter);
-            const connectedNodeIds = new Set(filteredLinks.flatMap(l => [l.source.id || l.source, l.target.id || l.target]));
-            const filteredNodes = graphData.nodes.filter(n => connectedNodeIds.has(n.id));
-            dataToRender = { nodes: filteredNodes, links: filteredLinks };
-        }
-
-        const width = this._containerElement.clientWidth || 500;
-        const height = this._containerElement.clientHeight || 400;
-        this._d3Svg.attr("viewBox", [0, 0, width, height]);
-
-
-        // Dispatch to the correct chart rendering function
-        switch (chartType) {
-            case GraphTypes.FORCE_DIRECTED:
-                this._renderForceDirectedGraph(dataToRender, width, height);
-                break;
-            case GraphTypes.BAR_CHART:
-                this._renderBarChart(dataToRender, width, height);
-                break;
-            case GraphTypes.PIE_CHART:
-                this._renderPieChart(dataToRender, width, height);
-                break;
-            case GraphTypes.TIME_SERIES:
-                this._renderTimeSeriesChart(dataToRender, width, height);
-                break;
-            case GraphTypes.HISTOGRAM:
-                this._renderHistogram(dataToRender, width, height);
-                break;
-            case GraphTypes.LINK_TYPE_BREAKDOWN:
-                this._renderLinkTypeBreakdown(dataToRender, width, height);
-                break;
-            case GraphTypes.GROUP_SIZE:
-                this._renderGroupSizeChart(dataToRender, width, height);
-                break;
-            default:
-                this._displayFallbackMessage(`Unknown chart type: '${chartType}'.`);
+        
+        try {
+            switch (chartType) {
+                case GraphTypes.FORCE_DIRECTED:
+                    this.renderForceDirectedGraph(graphData, predicateFilter);
+                    break;
+                case GraphTypes.BAR_CHART:
+                    this.renderBarChart(graphData);
+                    break;
+                case GraphTypes.PIE_CHART:
+                    this.renderPieChart(graphData);
+                    break;
+                case GraphTypes.TIME_SERIES:
+                    this.renderTimeSeriesChart(graphData);
+                    break;
+                case GraphTypes.HISTOGRAM:
+                    this.renderHistogram(graphData);
+                    break;
+                case GraphTypes.LINK_TYPE_BREAKDOWN:
+                    this.renderLinkTypeBreakdown(graphData);
+                    break;
+                case GraphTypes.GROUP_SIZE:
+                    this.renderGroupSizeChart(graphData);
+                    break;
+                default:
+                    console.warn(`Unknown chart type: ${chartType}`);
+            }
+        } catch (error) {
+            console.error('Error rendering chart:', error);
+            throw error;
         }
     }
 

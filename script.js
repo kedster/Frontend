@@ -447,6 +447,61 @@ document.addEventListener('DOMContentLoaded', () => {
         return graphService;
     }
 
+    function initializeGraphVisualization() {
+        const graphService = new GraphService(document.getElementById('graph-container'));
+        const chartButtons = document.querySelectorAll('.chart-btn');
+        const predicateFilter = document.getElementById('predicateFilter');
+        
+        // Get chart renderers from the service
+        const chartRenderers = graphService.getChartRenderers();
+        
+        // Handle chart button clicks
+        chartButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons
+                chartButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                const chartType = button.dataset.chart;
+                
+                // Show/hide predicate filter only for Force Directed Graph
+                const filterContainer = document.getElementById('predicateFilterContainer');
+                filterContainer.style.display = chartType === 'forceDirected' ? 'block' : 'none';
+                
+                // Render the selected chart
+                if (chartRenderers[chartType]) {
+                    try {
+                        chartRenderers[chartType]();
+                    } catch (error) {
+                        console.error(`Error rendering ${chartType}:`, error);
+                        document.getElementById('graph-message').textContent = 
+                            'Error rendering chart. Please check console for details.';
+                    }
+                }
+            });
+        });
+        
+        // Handle predicate filter changes
+        predicateFilter.addEventListener('change', () => {
+            graphService.updatePredicateFilter(predicateFilter.value);
+        });
+        
+        return graphService;
+    }
+
+    // Call this when RDF data is generated
+    function updateGraphVisualization(rdfData) {
+        const graphService = initializeGraphVisualization();
+        graphService.renderChart(rdfData, 'forceDirected');
+        
+        // Update predicate filter options
+        const predicates = graphService.getUniquePredicateLabels();
+        const predicateFilter = document.getElementById('predicateFilter');
+        predicateFilter.innerHTML = '<option value="">All Predicates</option>' +
+            predicates.map(pred => `<option value="${pred}">${pred}</option>`).join('');
+    }
+
     // --- Initialization ---
     loadSettings();
     showTab('instructions'); // Show instructions tab by default

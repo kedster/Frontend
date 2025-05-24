@@ -161,34 +161,39 @@ export class GraphService {
         this._currentChartType = chartType;
         this._currentPredicateFilter = predicateFilter;
         
+        // Get container dimensions
+        const width = this._containerElement.clientWidth || 500;
+        const height = this._containerElement.clientHeight || 400;
+        
         try {
             switch (chartType) {
                 case GraphTypes.FORCE_DIRECTED:
-                    this.renderForceDirectedGraph(graphData, predicateFilter);
+                    this._renderForceDirectedGraph(graphData, width, height); // Added underscore
                     break;
                 case GraphTypes.BAR_CHART:
-                    this.renderBarChart(graphData);
+                    this._renderBarChart(graphData, width, height); // Added underscore
                     break;
                 case GraphTypes.PIE_CHART:
-                    this.renderPieChart(graphData);
+                    this._renderPieChart(graphData, width, height); // Added underscore
                     break;
                 case GraphTypes.TIME_SERIES:
-                    this.renderTimeSeriesChart(graphData);
+                    this._renderTimeSeriesChart(graphData, width, height); // Added underscore
                     break;
                 case GraphTypes.HISTOGRAM:
-                    this.renderHistogram(graphData);
+                    this._renderHistogram(graphData, width, height); // Added underscore
                     break;
                 case GraphTypes.LINK_TYPE_BREAKDOWN:
-                    this.renderLinkTypeBreakdown(graphData);
+                    this._renderLinkTypeBreakdown(graphData, width, height); // Added underscore
                     break;
                 case GraphTypes.GROUP_SIZE:
-                    this.renderGroupSizeChart(graphData);
+                    this._renderGroupSizeChart(graphData, width, height); // Added underscore
                     break;
                 default:
                     console.warn(`Unknown chart type: ${chartType}`);
             }
         } catch (error) {
             console.error('Error rendering chart:', error);
+            this._displayFallbackMessage(`Error rendering ${chartType} chart: ${error.message}`);
             throw error;
         }
     }

@@ -268,8 +268,8 @@ export class GraphService {
             .attr("rx", 8)
             .attr("ry", 8)
             .attr("fill", d => {
-                if (d.type === NodeTypes.SUBJECT) return '#4CAF50';
-                if (d.type === NodeTypes.LITERAL) return '#FFC107';
+                if (d.type === NodeTypes.subject) return '#4CAF50';
+                if (d.type === NodeTypes.object) return '#FFC107';
                 return '#2196F3'; // NodeTypes.OBJECT or default
             });
 

@@ -4,16 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CSV to RDF Converter & Graph Visualizer</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Libraries from CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://unpkg.com/rdflib/dist/rdflib.min.js"></script>
+    <!-- Update your script tags to use modules -->
+    <!-- External dependencies first -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/rdflib@2.2.0/dist/rdflib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <!-- Your module scripts with type="module" -->
     <script type="module" src="rdfservice.js"></script>
-
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
+    
+    <!-- Your styles -->
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="progress-bar"></div>

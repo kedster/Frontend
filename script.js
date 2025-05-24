@@ -342,24 +342,37 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        console.log('Using mapping:', { subjectCol, predicateCol, objectCol });
-
         // Convert CSV to RDF
         csvData.forEach((row, index) => {
             const subject = $rdf.sym(baseUri + encodeURIComponent(row[subjectCol]));
             const predicate = $rdf.sym(baseUri + encodeURIComponent(row[predicateCol]));
-            const object = $rdf.lit(row[objectCol]); // Using literal for object values
-
+            const object = $rdf.lit(row[objectCol]);
             rdfStore.add(subject, predicate, object);
         });
 
-        console.log('RDF Store after conversion:', rdfStore);
+        // Generate the RDF text output
+        const rdfOutput = convertToRDF(csvData, baseUri, subjectCol, predicateCol, objectCol);
+        
+        // Update the RDF output editor
+        const rdfOutputEditor = document.getElementById('rdf-output-editor');
+        rdfOutputEditor.value = rdfOutput;
 
-        // Update graph visualization
+        // First show the RDF output tab
+        showTab('output');
+
+        // Then prepare the graph visualization (but don't switch to it yet)
         updateGraphVisualization(rdfStore);
 
-        // Switch to visualization tab
-        showTab('graph-visualization');
+        // Add a "View Graph" button to the output tab if it doesn't exist
+        let viewGraphBtn = document.getElementById('view-graph-btn');
+        if (!viewGraphBtn) {
+            viewGraphBtn = document.createElement('button');
+            viewGraphBtn.id = 'view-graph-btn';
+            viewGraphBtn.className = 'button';
+            viewGraphBtn.textContent = 'View Graph Visualization';
+            viewGraphBtn.onclick = () => showTab('graph-visualization');
+            rdfOutputEditor.parentNode.insertBefore(viewGraphBtn, rdfOutputEditor.nextSibling);
+        }
     }
 
     function convertToRDF(data, baseUri, subjectCol, predicateCol, objectCol) {

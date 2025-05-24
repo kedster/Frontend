@@ -66,24 +66,24 @@ document.addEventListener('DOMContentLoaded', () => {
     function showTab(tabId) {
         // Hide all tab contents
         document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.style.display = 'none';
             tab.classList.remove('active');
         });
         
-        // Remove active class from all nav buttons
-        document.querySelectorAll('.nav-button').forEach(button => {
-            button.classList.remove('active');
-        });
+        // Deactivate all buttons
+        navButtons.forEach(btn => btn.classList.remove('active'));
         
         // Show the selected tab content
         const selectedTab = document.getElementById(tabId);
         if (selectedTab) {
+            selectedTab.style.display = 'block';
             selectedTab.classList.add('active');
         }
         
-        // Add active class to the corresponding nav button
-        const activeButton = document.querySelector(`.nav-button[data-tab="${tabId}"]`);
-        if (activeButton) {
-            activeButton.classList.add('active');
+        // Activate selected button
+        const selectedButton = document.querySelector(`[data-tab="${tabId}"]`);
+        if (selectedButton) {
+            selectedButton.classList.add('active');
         }
     }
 
@@ -493,6 +493,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 ).join('');
         }
     }
+
+    // Add click handlers to nav buttons
+    navButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabId = button.getAttribute('data-tab');
+            showTab(tabId);
+        });
+    });
+
+    // Show initial tab
+    showTab('instructions');
 });
 
 async function executeComunicaSparql(query, turtleText) {

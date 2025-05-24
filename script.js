@@ -274,88 +274,92 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderMappingInterface(headers) {
-        if (headers.length === 0) {
-            columnMappingContainer.innerHTML = '';
-            mappingPlaceholder.style.display = 'block';
+        const container = document.getElementById('column-mapping-container');
+        const placeholder = document.getElementById('mapping-placeholder');
+        
+        if (!headers || headers.length === 0) {
+            placeholder.style.display = 'block';
+            container.innerHTML = '';
             return;
         }
-        mappingPlaceholder.style.display = 'none';
 
-        const currentMapping = appSettings.mapping;
-
-        // Helper to get a valid value or fallback to first header
-        const getValidOrFirst = (val) => (headers.includes(val) ? val : headers[0]);
-
-        columnMappingContainer.innerHTML = `
-            <div class="column-mapping-row">
-                <div>
-                    <label for="map-subject">Subject Column:</label>
-                    <select id="map-subject">
-                        ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
-                    </select>
-                </div>
-                <div>
-                    <label for="map-predicate">Predicate Column / Static:</label>
-                    <select id="map-predicate">
-                        ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
-                        <option value="static:predicate">Static Predicate</option>
-                    </select>
-                    <input type="text" id="static-predicate-value" class="static-predicate-input" placeholder="Static Predicate URI" value="${currentMapping.predicate.type === 'static' ? currentMapping.predicate.value : ''}">
-                </div>
-                <div>
-                    <label for="map-object">Object Column:</label>
-                    <select id="map-object">
-                        ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
-                    </select>
-                    <div class="radio-group">
-                        <label><input type="radio" name="object-type" id="object-type-uri" value="uri" ${currentMapping.object.objectType === 'uri' ? 'checked' : ''}> URI</label>
-                        <label><input type="radio" name="object-type" id="object-type-literal" value="literal" ${currentMapping.object.objectType === 'literal' ? 'checked' : ''}> Literal</label>
-                    </div>
-                </div>
+        placeholder.style.display = 'none';
+        container.innerHTML = `
+            <div class="mapping-group">
+                <h4>Subject Mapping</h4>
+                <select id="subject-column" class="mapping-select">
+                    <option value="">Select column</option>
+                    ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
+                </select>
+            </div>
+            <div class="mapping-group">
+                <h4>Predicate Mapping</h4>
+                <select id="predicate-column" class="mapping-select">
+                    <option value="">Select column</option>
+                    ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
+                </select>
+            </div>
+            <div class="mapping-group">
+                <h4>Object Mapping</h4>
+                <select id="object-column" class="mapping-select">
+                    <option value="">Select column</option>
+                    ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
+                </select>
             </div>
         `;
-
-        // Set selects to valid or default values
-        const subjectSelect = document.getElementById('map-subject');
-        const predicateSelect = document.getElementById('map-predicate');
-        const objectSelect = document.getElementById('map-object');
-        const staticPredicateInput = document.getElementById('static-predicate-value');
-        const objectTypeUriRadio = document.getElementById('object-type-uri');
-        const objectTypeLiteralRadio = document.getElementById('object-type-literal');
-
-        subjectSelect.value = getValidOrFirst(currentMapping.subject.value);
-        objectSelect.value = getValidOrFirst(currentMapping.object.value);
-
-        if (currentMapping.predicate.type === 'static') {
-            predicateSelect.value = 'static:predicate';
-            staticPredicateInput.style.display = 'block';
-        } else {
-            predicateSelect.value = getValidOrFirst(currentMapping.predicate.value);
-            staticPredicateInput.style.display = 'none';
-        }
-
-        // Event listeners for mapping changes
-        subjectSelect.addEventListener('change', saveSettings);
-        objectSelect.addEventListener('change', saveSettings);
-        objectTypeUriRadio.addEventListener('change', saveSettings);
-        objectTypeLiteralRadio.addEventListener('change', saveSettings);
-
-        predicateSelect.addEventListener('change', () => {
-            if (predicateSelect.value === 'static:predicate') {
-                staticPredicateInput.style.display = 'block';
-            } else {
-                staticPredicateInput.style.display = 'none';
-            }
-            saveSettings();
-        });
-        staticPredicateInput.addEventListener('change', saveSettings);
     }
 
-    // --- RDF Conversion ---
+    // Add event listener for the generate RDF button
+    document.getElementById('generate-rdf-button').addEventListener('click', () => {
+        const subjectCol = document.getElementById('subject-column').value;
+        const predicateCol = document.getElementById('predicate-column').value;
+        const objectCol = document.getElementById('object-column').value;
+        
+        if (!subjectCol || !predicateCol || !objectCol) {
+            alert('Please select columns for Subject, Predicate, and Object');
+            return;
+        }
+        
+        generateRDF(subjectCol, predicateCol, objectCol);
+    });
 
-    function getPrefixMap() {
+    function generateRDF(subjectCol, predicateCol, objectCol) {
+        const baseUri = document.getElementById('base-uri').value.trim() || 'http://example.org/data/';
+        const rdf = convertToRDF(csvData, baseUri, subjectCol, predicateCol, objectCol);
+        
+        // Update RDF output
+        const rdfOutput = document.getElementById('rdf-output-editor');
+        rdfOutput.value = rdf;
+        
+        // Switch to output tab
+        showTab('output');
+    }
+
+    function convertToRDF(data, baseUri, subjectCol, predicateCol, objectCol) {
+        let rdf = '';
+        const prefixes = getPrefixes();
+        
+        // Add prefixes
+        Object.entries(prefixes).forEach(([prefix, uri]) => {
+            rdf += `@prefix ${prefix}: <${uri}> .\n`;
+        });
+        rdf += '\n';
+        
+        // Convert data to RDF
+        data.forEach(row => {
+            const subject = `<${baseUri}${encodeURIComponent(row[subjectCol])}>`;
+            const predicate = row[predicateCol];
+            const object = row[objectCol];
+            
+            rdf += `${subject} ${predicate} "${object}" .\n`;
+        });
+        
+        return rdf;
+    }
+
+    function getPrefixes() {
         const prefixes = {};
-        prefixesContainer.querySelectorAll('.prefix-entry').forEach(entry => {
+        document.querySelectorAll('.prefix-entry').forEach(entry => {
             const name = entry.querySelector('.prefix-name').value.trim();
             const uri = entry.querySelector('.prefix-uri').value.trim();
             if (name && uri) {
@@ -365,76 +369,32 @@ document.addEventListener('DOMContentLoaded', () => {
         return prefixes;
     }
 
-    function generateRDF() {
-        if (csvData.length === 0) {
-            alert('Please upload CSV data first.');
-            showTab('input');
-            return;
-        }
-
-        const subjectCol = document.getElementById('map-subject').value;
-        const predicateCol = document.getElementById('map-predicate').value;
-        const objectCol = document.getElementById('map-object').value;
-        const objectType = document.querySelector('input[name="object-type"]:checked').value;
-
-        const baseURI = baseUriInput.value.endsWith('/') ? baseUriInput.value : baseUriInput.value + '/';
-        const prefixMap = getPrefixMap();
-
-        rdfStore = $rdf.graph();
-
-        csvData.forEach(row => {
-            const subjectValue = row[subjectCol];
-            const predicateValue = row[predicateCol];
-            const objectValue = row[objectCol];
-
-            if (!subjectValue || !predicateValue || !objectValue) return;
-
-            const subjectNode = $rdf.sym(baseURI + encodeURIComponent(subjectValue.trim().replace(/\s+/g, '_')));
-            const predicateNode = $rdf.sym(resolveUri(predicateValue.trim(), prefixMap));
-
-            let objectNode;
-            if (objectType === 'uri') {
-                objectNode = $rdf.sym(resolveUri(objectValue.trim(), prefixMap));
-            } else {
-                objectNode = $rdf.literal(objectValue.trim());
-            }
-
-            rdfStore.add(subjectNode, predicateNode, objectNode);
+    // Update showTab function to properly handle tab switching
+    function showTab(tabId) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.style.display = 'none';
+            tab.classList.remove('active');
         });
-
-        // Serialize to Turtle
-        const namespaces = {
-            ex: baseURI,
-            rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-            rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
-            owl: 'http://www.w3.org/2002/07/owl#',
-            ...prefixMap
-        };
-        const serializer = new $rdf.Serializer(rdfStore, { namespaces });
-        const rdfString = serializer.statementsToN3(rdfStore.statements);
-        rdfOutputEditor.value = rdfString;
-
-        // Update graph visualization using GraphService
-        graphData = graphService.convertRdfToD3Format(rdfStore);
-        graphService.renderChart(graphData, 'forceDirected');
-        updatePredicateOptions(); // Update filter options after loading new data
-    }
-
-
-    function resolveUri(uriStr, prefixMap) {
-        for (const prefixName in prefixMap) {
-            if (uriStr.startsWith(`${prefixName}:`)) {
-                return uriStr.replace(`${prefixName}:`, prefixMap[prefixName]);
-            }
+        
+        // Remove active class from all nav buttons
+        document.querySelectorAll('.nav-button').forEach(button => {
+            button.classList.remove('active');
+        });
+        
+        // Show selected tab
+        const selectedTab = document.getElementById(tabId);
+        if (selectedTab) {
+            selectedTab.style.display = 'block';
+            selectedTab.classList.add('active');
         }
-        // If no prefix matches and it's not a full URI, prepend base URI
-        if (!uriStr.match(/^[a-zA-Z]+:\/\//)) { // Check if it's already a full URI
-            return baseUriInput.value + encodeURIComponent(uriStr.replace(/\s+/g, '_'));
+        
+        // Add active class to selected nav button
+        const activeButton = document.querySelector(`.nav-button[data-tab="${tabId}"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
         }
-        return uriStr; // Return as is if it's already a full URI
     }
-
-    // --- RDF Output Actions ---
 
     function copyRDF() {
         rdfOutputEditor.select();

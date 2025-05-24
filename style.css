@@ -517,6 +517,33 @@ svg text,
     border: 1px solid #ddd;
 }
 
+/* Object Type Selector */
+.object-type-selector {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.radio-group {
+    display: flex;
+    gap: 2rem;
+    margin-top: 0.5rem;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.radio-group input[type="radio"] {
+    margin: 0;
+    cursor: pointer;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     main {

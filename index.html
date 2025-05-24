@@ -99,7 +99,23 @@
                     <div id="column-mapping-container">
                         <!-- Mapping dropdowns will be populated here by JS -->
                     </div>
-                    <button id="generate-rdf-button" class="button">Render RDF Mapping Interface</button>
+                    
+                    <!-- Add this new object type selector -->
+                    <div class="object-type-selector">
+                        <h4>Object Type:</h4>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="object-type" id="object-type-literal" value="literal" checked>
+                                Literal (String/Number)
+                            </label>
+                            <label>
+                                <input type="radio" name="object-type" id="object-type-uri" value="uri">
+                                URI (Resource)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button id="generate-rdf-button" class="button">Generate RDF</button>
                 </div>
             </section>
 

@@ -58,7 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
             predicate: { type: 'column', value: '' },
             object: { type: 'column', value: '', objectType: 'uri' } // 'uri' or 'literal'
         },
-        csvPreviewRows: 5
+        csvPreviewRows: 5,
+        objectType: 'uri' // Default object type
     };
 
     // --- Utility Functions ---
@@ -118,6 +119,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedSettings = localStorage.getItem(SETTINGS_KEY);
         if (savedSettings) {
             appSettings = { ...appSettings, ...JSON.parse(savedSettings) };
+            
+            // Set the radio button based on saved preference
+            if (appSettings.objectType) {
+                document.getElementById(`object-type-${appSettings.objectType}`).checked = true;
+            }
         }
 
         baseUriInput.value = appSettings.baseURI;
@@ -342,11 +348,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const isObjectUri = document.getElementById('object-type-uri').checked;
+        
         // Convert CSV to RDF
         csvData.forEach((row, index) => {
             const subject = $rdf.sym(baseUri + encodeURIComponent(row[subjectCol]));
             const predicate = $rdf.sym(baseUri + encodeURIComponent(row[predicateCol]));
-            const object = $rdf.lit(row[objectCol]);
+            
+            // Create object based on type selection
+            const object = isObjectUri 
+                ? $rdf.sym(baseUri + encodeURIComponent(row[objectCol]))  // URI
+                : $rdf.lit(row[objectCol]);  // Literal
+                
             rdfStore.add(subject, predicate, object);
         });
 
@@ -656,21 +669,12 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Please paste some CSV data first');
         }
     });
-});
 
-async function executeComunicaSparql(query, turtleText) {
-    const comunicaEngine = new Comunica.QueryEngine();
-    const results = [];
-    const bindingsStream = await comunicaEngine.queryBindings(query, {
-        sources: [{ type: 'string', value: turtleText, mediaType: 'text/turtle' }]
+    // Save object type preference
+    document.querySelectorAll('input[name="object-type"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            appSettings.objectType = e.target.value;
+            saveSettings();
+        });
     });
-    const bindings = await bindingsStream.toArray();
-    bindings.forEach(binding => {
-        const row = {};
-        for (const [key, value] of binding.entries()) {
-            row[key] = value.value;
-        }
-        results.push(row);
-    });
-    return results;
-}
+});

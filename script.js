@@ -1,682 +1,624 @@
-import { GraphService } from './rdfservice.js';
+        // Global state
+        let db = null;
+        let SQL = null;
+        let filesData = new Map();
+        let fileInputCounter = 0;
 
-document.addEventListener('DOMContentLoaded', () => {
-    // --- Global State Variables ---
-    let csvData = [];
-    let csvHeaders = [];
-    let rdfStore = null; // rdflib.js store
-    let graphData = { nodes: [], links: [] };
-
-    // --- DOM Elements ---
-    const navButtons = document.querySelectorAll('.nav-button');
-    const tabContents = document.querySelectorAll('.tab-content');
-
-    // Input Tab
-    const dropArea = document.getElementById('drop-area');
-    const csvFileInput = document.getElementById('csv-file-input');
-    const csvPasteInput = document.getElementById('csv-paste-input');
-    const parsePasteButton = document.getElementById('parse-paste-button');
-    const csvPreview = document.getElementById('csv-preview');
-
-    // Configure Tab
-    const baseUriInput = document.getElementById('base-uri');
-    const prefixesContainer = document.getElementById('prefixes-container');
-    const addPrefixButton = document.getElementById('add-prefix-button');
-    const columnMappingContainer = document.getElementById('column-mapping-container');
-    const mappingPlaceholder = document.getElementById('mapping-placeholder');
-    const generateRdfButton = document.getElementById('generate-rdf-button');
-
-    // Output Tab
-    const rdfOutputEditor = document.getElementById('rdf-output-editor');
-    const copyRdfButton = document.getElementById('copy-rdf-button');
-    const downloadRdfButton = document.getElementById('download-rdf-button');
-
-    // Graph Visualization Tab
-    const graphContainer = document.getElementById('graph-container');
-    const rdfGraphSvg = document.getElementById('rdf-graph');
-
-    // SPARQL Tester Tab
-    const sparqlQueryInput = document.getElementById('sparql-query-input');
-    const executeSparqlButton = document.getElementById('execute-sparql-button');
-    const sparqlResultsDiv = document.getElementById('sparql-results');
-
-    // Settings Tab
-    const csvPreviewRowsInput = document.getElementById('csv-preview-rows');
-
-    // Bottom Bar
-    const downloadAllRdfButton = document.getElementById('download-all-rdf-button');
-    const exportGraphButton = document.getElementById('export-graph-button');
-    const resetAppButton = document.getElementById('reset-app-button');
-
-    // --- Persistent Settings (localStorage) ---
-    const SETTINGS_KEY = 'rdf_converter_settings';
-    let appSettings = {
-        baseURI: 'http://example.org/data/',
-        prefixes: [{ name: 'ex', uri: 'http://example.org/ontology/' }],
-        mapping: {
-            subject: { type: 'column', value: '' },
-            predicate: { type: 'column', value: '' },
-            object: { type: 'column', value: '', objectType: 'uri' } // 'uri' or 'literal'
-        },
-        csvPreviewRows: 5,
-        objectType: 'uri' // Default object type
-    };
-
-    // --- Utility Functions ---
-
-    function showTab(tabId) {
-        // Hide all tab contents
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.style.display = 'none';
-            tab.classList.remove('active');
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeFileInputs();
+            checkExistingDatabase();
         });
-        
-        // Deactivate all buttons
-        navButtons.forEach(btn => btn.classList.remove('active'));
-        
-        // Show the selected tab content
-        const selectedTab = document.getElementById(tabId);
-        if (selectedTab) {
-            selectedTab.style.display = 'block';
-            selectedTab.classList.add('active');
-        }
-        
-        // Activate selected button
-        const selectedButton = document.querySelector(`[data-tab="${tabId}"]`);
-        if (selectedButton) {
-            selectedButton.classList.add('active');
-        }
-    }
 
-    function saveSettings() {
-        appSettings.baseURI = baseUriInput.value;
-        appSettings.prefixes = Array.from(prefixesContainer.querySelectorAll('.prefix-entry')).map(entry => ({
-            name: entry.querySelector('.prefix-name').value,
-            uri: entry.querySelector('.prefix-uri').value
-        }));
-        appSettings.csvPreviewRows = parseInt(csvPreviewRowsInput.value, 10);
-
-        // Save mapping only if headers exist
-        if (csvHeaders.length > 0) {
-            const subjectSelect = document.getElementById('map-subject');
-            const predicateSelect = document.getElementById('map-predicate');
-            const objectSelect = document.getElementById('map-object');
-            const staticPredicateInput = document.getElementById('static-predicate-value');
-            const objectTypeUriRadio = document.getElementById('object-type-uri');
-
-            if (subjectSelect && predicateSelect && objectSelect) {
-                appSettings.mapping.subject.value = subjectSelect.value;
-                appSettings.mapping.predicate.type = predicateSelect.value.startsWith('static') ? 'static' : 'column';
-                appSettings.mapping.predicate.value = predicateSelect.value.startsWith('static') ? staticPredicateInput.value : predicateSelect.value;
-                appSettings.mapping.object.value = objectSelect.value;
-                appSettings.mapping.object.objectType = objectTypeUriRadio.checked ? 'uri' : 'literal';
+        function initializeFileInputs() {
+            // Start with 3 file inputs
+            for (let i = 0; i < 3; i++) {
+                addFileInput();
             }
         }
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
-    }
 
-    function loadSettings() {
-        const savedSettings = localStorage.getItem(SETTINGS_KEY);
-        if (savedSettings) {
-            appSettings = { ...appSettings, ...JSON.parse(savedSettings) };
+        function addFileInput() {
+            fileInputCounter++;
+            const container = document.getElementById('file-inputs-container');
             
-            // Set the radio button based on saved preference
-            if (appSettings.objectType) {
-                document.getElementById(`object-type-${appSettings.objectType}`).checked = true;
+            const inputGroup = document.createElement('div');
+            inputGroup.className = 'form-group';
+            inputGroup.innerHTML = `
+                <label>CSV File ${fileInputCounter}:</label>
+                <input type="file" class="file-input" id="file-input-${fileInputCounter}" accept=".csv" onchange="handleFileUpload(this)">
+                <div id="status-${fileInputCounter}" class="file-status" style="display: none;"></div>
+            `;
+            
+            container.appendChild(inputGroup);
+        }
+
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            const statusId = input.id.replace('file-input-', 'status-');
+            const statusEl = document.getElementById(statusId);
+            
+            if (!file) {
+                statusEl.style.display = 'none';
+                filesData.delete(input.id);
+                updateStats();
+                return;
+            }
+
+            statusEl.style.display = 'block';
+            statusEl.textContent = 'Reading file...';
+            statusEl.className = 'file-status';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    filesData.set(input.id, { name: file.name, content: content });
+                    
+                    statusEl.textContent = `✅ ${file.name} loaded successfully`;
+                    statusEl.className = 'file-status success';
+                    updateStats();
+                } catch (error) {
+                    statusEl.textContent = `❌ Error reading ${file.name}`;
+                    statusEl.className = 'file-status error';
+                    filesData.delete(input.id);
+                }
+            };
+
+            reader.onerror = function() {
+                statusEl.textContent = `❌ Failed to read ${file.name}`;
+                statusEl.className = 'file-status error';
+                filesData.delete(input.id);
+            };
+
+            reader.readAsText(file);
+        }
+
+        function updateStats() {
+            const filesCount = filesData.size;
+            document.getElementById('files-count').textContent = filesCount;
+            
+            const statsContainer = document.getElementById('upload-stats');
+            if (filesCount > 0) {
+                statsContainer.style.display = 'flex';
+            } else {
+                statsContainer.style.display = 'none';
             }
         }
 
-        baseUriInput.value = appSettings.baseURI;
-        csvPreviewRowsInput.value = appSettings.csvPreviewRows;
+        async function createDatabase() {
+            if (filesData.size === 0) {
+                showAlert('Please upload at least one CSV file first.', 'error');
+                return;
+            }
 
-        // Populate prefixes
-        prefixesContainer.innerHTML = '<h4>Prefixes:</h4>'; // Clear existing
-        appSettings.prefixes.forEach(prefix => addPrefixEntry(prefix.name, prefix.uri));
-        if (appSettings.prefixes.length === 0) { // Ensure at least one empty entry if none saved
-            addPrefixEntry();
-        }
-    }
+            const createBtn = document.getElementById('create-db-btn');
+            const originalText = createBtn.innerHTML;
+            createBtn.innerHTML = '<span class="loading"></span>Creating Database...';
+            createBtn.disabled = true;
 
-    function resetAll() {
-        if (!confirm('Are you sure you want to reset all data and settings? This cannot be undone.')) {
-            return;
-        }
-
-        localStorage.removeItem(SETTINGS_KEY);
-        csvData = [];
-        csvHeaders = [];
-        rdfStore = null;
-        graphData = { nodes: [], links: [] };
-
-        // Reset UI elements
-        csvPreview.innerHTML = '<p>No CSV data loaded.</p>';
-        csvFileInput.value = '';
-        csvPasteInput.value = '';
-        rdfOutputEditor.value = '';
-        sparqlQueryInput.value = 'PREFIX ex: <http://example.org/ontology/>\nSELECT ?s ?p ?o WHERE { ?s ?p ?o . }\nLIMIT 10';
-        sparqlResultsDiv.innerHTML = '<p>No query executed yet.</p>';
-        graphContainer.innerHTML = '<p>Upload CSV, configure mapping, and generate RDF to see the graph.</p><svg id="rdf-graph"></svg>'; // Re-add SVG
-        columnMappingContainer.innerHTML = '';
-        mappingPlaceholder.style.display = 'block';
-
-        // Reload default settings
-        appSettings = {
-            baseURI: 'http://example.org/data/',
-            prefixes: [{ name: 'ex', uri: 'http://example.org/ontology/' }],
-            mapping: {
-                subject: { type: 'column', value: '' },
-                predicate: { type: 'column', value: '' },
-                object: { type: 'column', value: '', objectType: 'uri' }
-            },
-            csvPreviewRows: 5
-        };
-        loadSettings(); // Apply default settings to UI
-        showTab('instructions'); // Go back to instructions
-        alert('Application reset successfully!');
-    }
-
-    // --- CSV Handling ---
-
-    function handleFileUpload(file) {
-        if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
-            alert('Please upload a CSV file');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
             try {
-                parseCSV(e.target.result);
-            } catch (error) {
-                console.error('Error reading CSV:', error);
-                alert('Error reading CSV file. Please check the file format.');
-            }
-        };
-        reader.onerror = (error) => {
-            console.error('FileReader error:', error);
-            alert('Error reading file. Please try again.');
-        };
-        reader.readAsText(file);
-    }
+                // Initialize SQL.js
+                SQL = await initSqlJs({
+                    locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+                });
 
-    function parseCSV(csvText) {
-        Papa.parse(csvText, {
-            header: true,
-            skipEmptyLines: true,
-            complete: function(results) {
-                if (results.errors.length > 0) {
-                    console.error('CSV parsing errors:', results.errors);
-                    alert('Error parsing CSV: ' + results.errors[0].message);
-                    return;
-                }
+                db = new SQL.Database();
+                let totalRows = 0;
+                let tablesCreated = 0;
+
+                // Clear previous displays
+                document.getElementById('tables-display').innerHTML = '';
                 
-                if (!results.data || results.data.length === 0) {
-                    alert('No valid data found in CSV');
-                    return;
-                }
-
-                csvData = results.data;
-                csvHeaders = results.meta.fields;
-                updateCSVPreview();
-                renderMappingInterface(csvHeaders); // Update mapping interface with new headers
-                showTab('input');
-            },
-            error: function(error) {
-                console.error('PapaParse error:', error);
-                alert('Error parsing CSV data. Please check the format.');
-            }
-        });
-    }
-
-    function updateCSVPreview() {
-        const previewDiv = document.getElementById('csv-preview');
-        const previewRows = parseInt(document.getElementById('csv-preview-rows').value) || 5;
-        
-        if (!csvData || csvData.length === 0) {
-            previewDiv.innerHTML = '<p>No CSV data loaded.</p>';
-            return;
-        }
-
-        // Create table
-        let tableHTML = '<table class="preview-table"><thead><tr>';
-        
-        // Add headers
-        csvHeaders.forEach(header => {
-            tableHTML += `<th>${header}</th>`;
-        });
-        tableHTML += '</tr></thead><tbody>';
-
-        // Add rows
-        csvData.slice(0, previewRows).forEach(row => {
-            tableHTML += '<tr>';
-            csvHeaders.forEach(header => {
-                tableHTML += `<td>${row[header] || ''}</td>`;
-            });
-            tableHTML += '</tr>';
-        });
-
-        tableHTML += '</tbody></table>';
-        previewDiv.innerHTML = tableHTML;
-    }
-
-    // --- Configure Tab (Mapping & Prefixes) ---
-
-    function addPrefixEntry(name = '', uri = '') {
-        const div = document.createElement('div');
-        div.classList.add('prefix-entry');
-        div.innerHTML = `
-            <input type="text" class="prefix-name" placeholder="Prefix (e.g., ex)" value="${name}">
-            <input type="text" class="prefix-uri" placeholder="URI (e.g., http://example.org/ontology/)" value="${uri}">
-            <button class="remove-prefix button-small">Remove</button>
-        `;
-        div.querySelector('.remove-prefix').addEventListener('click', () => {
-            div.remove();
-            saveSettings();
-        });
-        div.querySelectorAll('input').forEach(input => {
-            input.addEventListener('change', saveSettings);
-        });
-        prefixesContainer.appendChild(div);
-    }
-
-    function renderMappingInterface(headers) {
-        const container = document.getElementById('column-mapping-container');
-        const placeholder = document.getElementById('mapping-placeholder');
-        
-        if (!headers || headers.length === 0) {
-            placeholder.style.display = 'block';
-            container.innerHTML = '';
-            return;
-        }
-
-        placeholder.style.display = 'none';
-        container.innerHTML = `
-            <div class="mapping-group">
-                <h4>Subject Mapping</h4>
-                <select id="subject-column" class="mapping-select">
-                    <option value="">Select column</option>
-                    ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
-                </select>
-            </div>
-            <div class="mapping-group">
-                <h4>Predicate Mapping</h4>
-                <select id="predicate-column" class="mapping-select">
-                    <option value="">Select column</option>
-                    ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
-                </select>
-            </div>
-            <div class="mapping-group">
-                <h4>Object Mapping</h4>
-                <select id="object-column" class="mapping-select">
-                    <option value="">Select column</option>
-                    ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
-                </select>
-            </div>
-        `;
-    }
-
-    // Add event listener for the generate RDF button
-    document.getElementById('generate-rdf-button').addEventListener('click', () => {
-        const subjectCol = document.getElementById('subject-column').value;
-        const predicateCol = document.getElementById('predicate-column').value;
-        const objectCol = document.getElementById('object-column').value;
-        
-        if (!subjectCol || !predicateCol || !objectCol) {
-            alert('Please select columns for Subject, Predicate, and Object');
-            return;
-        }
-        
-        generateRDF(subjectCol, predicateCol, objectCol);
-    });
-
-    function generateRDF(subjectCol, predicateCol, objectCol) {
-        if (!csvData || csvData.length === 0) {
-            alert('No CSV data loaded');
-            return;
-        }
-
-        console.log('Generating RDF from CSV data:', csvData);
-
-        const baseUri = document.getElementById('base-uri').value.trim() || 'http://example.org/data/';
-        
-        // Initialize RDF store
-        rdfStore = $rdf.graph();
-        console.log('RDF Store initialized');
-
-        if (!subjectCol || !predicateCol || !objectCol) {
-            alert('Please select columns for Subject, Predicate, and Object');
-            return;
-        }
-
-        const isObjectUri = document.getElementById('object-type-uri').checked;
-        
-        // Convert CSV to RDF
-        csvData.forEach((row, index) => {
-            const subject = $rdf.sym(baseUri + encodeURIComponent(row[subjectCol]));
-            const predicate = $rdf.sym(baseUri + encodeURIComponent(row[predicateCol]));
-            
-            // Create object based on type selection
-            const object = isObjectUri 
-                ? $rdf.sym(baseUri + encodeURIComponent(row[objectCol]))  // URI
-                : $rdf.lit(row[objectCol]);  // Literal
-                
-            rdfStore.add(subject, predicate, object);
-        });
-
-        // Generate the RDF text output
-        const rdfOutput = convertToRDF(csvData, baseUri, subjectCol, predicateCol, objectCol);
-        
-        // Update the RDF output editor
-        const rdfOutputEditor = document.getElementById('rdf-output-editor');
-        rdfOutputEditor.value = rdfOutput;
-
-        // First show the RDF output tab
-        showTab('output');
-
-        // Then prepare the graph visualization (but don't switch to it yet)
-        updateGraphVisualization(rdfStore);
-
-        // Add a "View Graph" button to the output tab if it doesn't exist
-        let viewGraphBtn = document.getElementById('view-graph-btn');
-        if (!viewGraphBtn) {
-            viewGraphBtn = document.createElement('button');
-            viewGraphBtn.id = 'view-graph-btn';
-            viewGraphBtn.className = 'button';
-            viewGraphBtn.textContent = 'View Graph Visualization';
-            viewGraphBtn.onclick = () => showTab('graph-visualization');
-            rdfOutputEditor.parentNode.insertBefore(viewGraphBtn, rdfOutputEditor.nextSibling);
-        }
-    }
-
-function convertToRDF(data, baseUri, subjectCol, predicateCol, objectCol) {
-    let rdf = '';
-    const prefixes = {
-        ex: 'http://Stocks/Suspensions/',
-        reason: 'http://Stocks/Reason/'
-    };
-    
-    // Add prefixes
-    Object.entries(prefixes).forEach(([prefix, uri]) => {
-        rdf += `@prefix ${prefix}: <${uri}> .\n`;
-    });
-    rdf += '\n';
-    
-    // Convert data to RDF
-    data.forEach(row => {
-        const stockSymbol = row[objectCol];  // e.g. "AILEW"
-        const predicate = row[predicateCol].replace(/\s+/g, '').toLowerCase();  // e.g. Regulatory/Non Compliance -> regulatorynoncompliance
-        rdf += `ex:${stockSymbol} reason:${predicate} "${stockSymbol}" .\n`;
-    });
-    
-    return rdf;
-}
-
-
-    function getPrefixes() {
-        const prefixes = {};
-        document.querySelectorAll('.prefix-entry').forEach(entry => {
-            const name = entry.querySelector('.prefix-name').value.trim();
-            const uri = entry.querySelector('.prefix-uri').value.trim();
-            if (name && uri) {
-                prefixes[name] = uri;
-            }
-        });
-        return prefixes;
-    }
-
-    // Update showTab function to properly handle tab switching
-    function showTab(tabId) {
-        // Hide all tabs
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.style.display = 'none';
-            tab.classList.remove('active');
-        });
-        
-        // Remove active class from all nav buttons
-        document.querySelectorAll('.nav-button').forEach(button => {
-            button.classList.remove('active');
-        });
-        
-        // Show selected tab
-        const selectedTab = document.getElementById(tabId);
-        if (selectedTab) {
-            selectedTab.style.display = 'block';
-            selectedTab.classList.add('active');
-        }
-        
-        // Add active class to selected nav button
-        const activeButton = document.querySelector(`.nav-button[data-tab="${tabId}"]`);
-        if (activeButton) {
-            activeButton.classList.add('active');
-        }
-    }
-
-    function copyRDF() {
-        rdfOutputEditor.select();
-        document.execCommand('copy');
-        alert('RDF copied to clipboard!');
-    }
-
-    function downloadRDF() {
-        const rdfContent = rdfOutputEditor.value;
-        if (!rdfContent) {
-            alert('No RDF content to download.');
-            return;
-        }
-        const blob = new Blob([rdfContent], { type: 'text/turtle;charset=utf-8' });
-        saveAs(blob, 'generated_rdf.ttl');
-    }
-
-    // --- Graph Visualization ---
-
-    function initializeGraphControls() {
-        const graphService = new GraphService(document.getElementById('graph-container'));
-        const buttons = document.querySelectorAll('.chart-btn');
-        const predicateFilterContainer = document.getElementById('predicateFilterContainer');
-        const predicateFilter = document.getElementById('predicateFilter');
-
-        // Get chart renderers from the service
-        const chartRenderers = graphService.getChartRenderers();
-
-        // Handle button clicks
-        buttons.forEach(button => {
-            button.addEventListener('click', function() {
-                buttons.forEach(btn => btn.classList.remove('active'));
-                this.classList.add('active');
-
-                const chartType = this.dataset.chart;
-                predicateFilterContainer.style.display = 
-                    chartType === 'forceDirected' ? 'block' : 'none';
-
-                if (chartRenderers[chartType]) {
-                    chartRenderers[chartType]();
-                }
-            });
-        });
-
-        // Handle predicate filter changes
-        predicateFilter.addEventListener('change', function() {
-            graphService.updatePredicateFilter(this.value);
-        });
-
-        return graphService;
-    }
-
-    function initializeGraphVisualization() {
-        const graphService = new GraphService(document.getElementById('graph-container'));
-        const chartButtons = document.querySelectorAll('.chart-btn');
-        const predicateFilter = document.getElementById('predicateFilter');
-        
-        // Get chart renderers from the service
-        const chartRenderers = graphService.getChartRenderers();
-        
-        // Handle chart button clicks
-        chartButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                // Remove active class from all buttons
-                chartButtons.forEach(btn => btn.classList.remove('active'));
-                // Add active class to clicked button
-                button.classList.add('active');
-                
-                const chartType = button.dataset.chart;
-                
-                // Show/hide predicate filter only for Force Directed Graph
-                const filterContainer = document.getElementById('predicateFilterContainer');
-                filterContainer.style.display = chartType === 'forceDirected' ? 'block' : 'none';
-                
-                // Render the selected chart
-                if (chartRenderers[chartType]) {
+                for (const [inputId, fileObj] of filesData.entries()) {
                     try {
-                        chartRenderers[chartType]();
+                        const { name, content } = fileObj;
+                        const tableName = generateTableName(name);
+                        const { columns, rows } = parseCSV(content);
+
+                        if (columns.length === 0) {
+                            throw new Error(`File "${name}" has no columns or is empty.`);
+                        }
+
+                        // Create table
+                        const createTableSQL = `CREATE TABLE ${escapeSqlId(tableName)} (${columns.map(c => escapeSqlId(c) + ' TEXT').join(', ')})`;
+                        db.run(createTableSQL);
+
+                        // Insert data
+                        const placeholders = columns.map(() => '?').join(', ');
+                        const insertSQL = `INSERT INTO ${escapeSqlId(tableName)} VALUES (${placeholders})`;
+                        const stmt = db.prepare(insertSQL);
+
+                        for (const row of rows) {
+                            const paddedRow = row.slice(0, columns.length);
+                            while (paddedRow.length < columns.length) paddedRow.push('');
+                            stmt.run(paddedRow);
+                        }
+                        stmt.free();
+
+                        totalRows += rows.length;
+                        tablesCreated++;
+
+                        // Show table preview
+                        renderTablePreview(tableName, columns, rows.slice(0, 5));
+
                     } catch (error) {
-                        console.error(`Error rendering ${chartType}:`, error);
-                        document.getElementById('graph-message').textContent = 
-                            'Error rendering chart. Please check console for details.';
+                        showAlert(`Error processing ${fileObj.name}: ${error.message}`, 'error');
                     }
                 }
-            });
-        });
-        
-        // Handle predicate filter changes
-        predicateFilter.addEventListener('change', () => {
-            graphService.updatePredicateFilter(predicateFilter.value);
-        });
-        
-        return graphService;
-    }
 
-    // Call this when RDF data is generated
-    function updateGraphVisualization(rdfData) {
-        console.log('Updating graph visualization with data:', rdfData);
-        
-        // Convert RDF to graph format
-        const graphData = convertRdfToGraphData(rdfStore);
-        console.log('Converted graph data:', graphData);
-        
-        // Initialize graph service and render
-        const graphService = initializeGraphVisualization();
-        graphService.renderChart(graphData, 'forceDirected');
-    }
+                // Update stats
+                document.getElementById('tables-count').textContent = tablesCreated;
+                document.getElementById('rows-count').textContent = totalRows;
 
-    // Add this conversion function
-    function convertRdfToGraphData(rdfStore) {
-        console.log('Converting RDF store to graph data...');
-        console.log('RDF Store:', rdfStore);
+                // Save to localStorage with compression
+                saveCompressedDatabase();
 
-        const nodes = new Map();
-        const links = [];
+                // Enable query functionality
+                document.getElementById('run-query-btn').disabled = false;
+                document.getElementById('generate-rdf-btn').disabled = false;
 
-        // Get all statements from RDF store
-        const statements = rdfStore.statements;
-        console.log('RDF Statements:', statements);
+                // Show tables
+                const tablesDisplay = document.getElementById('tables-display');
+                tablesDisplay.style.display = 'block';
 
-        // Process each statement
-        statements.forEach(stmt => {
-            // Add subject node if not exists
-            if (!nodes.has(stmt.subject.value)) {
-                nodes.set(stmt.subject.value, {
-                    id: stmt.subject.value,
-                    label: stmt.subject.value.split('/').pop(),
-                    type: 'subject'
-                });
+                showAlert(`Database created successfully! ${tablesCreated} tables with ${totalRows} total rows.`, 'success');
+
+            } catch (error) {
+                showAlert(`Error creating database: ${error.message}`, 'error');
+            } finally {
+                createBtn.innerHTML = originalText;
+                createBtn.disabled = false;
+            }
+        }
+
+        function saveCompressedDatabase() {
+            if (!db) return;
+            
+            try {
+                const binaryArray = db.export();
+                const compressed = pako.gzip(binaryArray);
+                const base64String = btoa(String.fromCharCode(...compressed));
+                localStorage.setItem('sqljs_db_gz', base64String);
+                console.log('Database saved with compression');
+            } catch (error) {
+                console.error('Error saving database:', error);
+            }
+        }
+
+        async function loadCompressedDatabase() {
+            try {
+                const base64String = localStorage.getItem('sqljs_db_gz');
+                if (!base64String) return null;
+
+                const binaryString = atob(base64String);
+                const compressedBytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    compressedBytes[i] = binaryString.charCodeAt(i);
+                }
+
+                const decompressed = pako.ungzip(compressedBytes);
+
+                if (!SQL) {
+                    SQL = await initSqlJs({
+                        locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+                    });
+                }
+
+                return new SQL.Database(decompressed);
+            } catch (error) {
+                console.error('Error loading database:', error);
+                return null;
+            }
+        }
+
+        async function checkExistingDatabase() {
+            db = await loadCompressedDatabase();
+            if (db) {
+                document.getElementById('run-query-btn').disabled = false;
+                document.getElementById('generate-rdf-btn').disabled = false;
+                showAlert('Previous database loaded from storage.', 'success');
+            }
+        }
+
+        function runQuery() {
+            if (!db) {
+                showAlert('Please create a database first.', 'error');
+                return;
             }
 
-            // Add object node if not exists
-            if (!nodes.has(stmt.object.value)) {
-                nodes.set(stmt.object.value, {
-                    id: stmt.object.value,
-                    label: stmt.object.value.split('/').pop(),
-                    type: stmt.object.termType === 'Literal' ? 'literal' : 'object'
-                });
+            const query = document.getElementById('sql-query').value.trim();
+            if (!query) {
+                showAlert('Please enter a SQL query.', 'error');
+                return;
             }
 
-            // Add link
-            links.push({
-                source: stmt.subject.value,
-                target: stmt.object.value,
-                label: stmt.predicate.value.split('/').pop()
+            const runBtn = document.getElementById('run-query-btn');
+            const originalText = runBtn.innerHTML;
+            runBtn.innerHTML = '<span class="loading"></span>Running...';
+            runBtn.disabled = true;
+
+            try {
+                const results = db.exec(query);
+                displayQueryResults(results);
+            } catch (error) {
+                showAlert(`SQL Error: ${error.message}`, 'error');
+            } finally {
+                runBtn.innerHTML = originalText;
+                runBtn.disabled = false;
+            }
+        }
+
+        function displayQueryResults(results) {
+            const container = document.getElementById('query-results');
+            container.innerHTML = '';
+            container.style.display = 'block';
+
+            if (results.length === 0) {
+                container.innerHTML = '<div class="alert alert-success">Query executed successfully, no results to display.</div>';
+                return;
+            }
+
+            const { columns, values } = results[0];
+            
+            const table = document.createElement('table');
+            
+            // Header
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // Body
+            const tbody = document.createElement('tbody');
+            values.forEach(row => {
+                const tr = document.createElement('tr');
+                row.forEach(cell => {
+                    const td = document.createElement('td');
+                    td.textContent = cell === null ? 'NULL' : cell;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            container.appendChild(table);
+        }
+
+        function renderTablePreview(tableName, columns, rows) {
+            const container = document.getElementById('tables-display');
+            
+            const preview = document.createElement('div');
+            preview.className = 'table-preview';
+            
+            const title = document.createElement('h3');
+            title.textContent = `📊 Table: ${tableName}`;
+            preview.appendChild(title);
+
+            const table = document.createElement('table');
+            
+            // Header
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // Body (preview only)
+            const tbody = document.createElement('tbody');
+            rows.forEach(row => {
+                const tr = document.createElement('tr');
+                columns.forEach((col, idx) => {
+                    const td = document.createElement('td');
+                    td.textContent = row[idx] || '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            preview.appendChild(table);
+            container.appendChild(preview);
+        }
+
+        async function generateRDF() {
+            if (!db) {
+                db = await loadCompressedDatabase();
+                if (!db) {
+                    showAlert('No database found. Please create a database first.', 'error');
+                    return;
+                }
+            }
+
+            const generateBtn = document.getElementById('generate-rdf-btn');
+            const originalText = generateBtn.innerHTML;
+            generateBtn.innerHTML = '<span class="loading"></span>Generating...';
+            generateBtn.disabled = true;
+
+            try {
+                const baseUri = document.getElementById('base-uri').value.trim();
+                const ontologySuffix = document.getElementById('ontology-select').value;
+                const customPrefixes = document.getElementById('prefixes').value.trim();
+
+                let fullOntologyUri = baseUri;
+                if (!fullOntologyUri.endsWith('/') && !fullOntologyUri.endsWith('#')) {
+                    fullOntologyUri += '/';
+                }
+                fullOntologyUri += ontologySuffix + '#';
+
+                // Get table names
+                const tableNames = getTableNames(db);
+                
+                // Build RDF
+                let turtle = '';
+                
+                // Add default prefixes
+                turtle += `@prefix ex: <${fullOntologyUri}> .\n`;
+                turtle += `@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n`;
+                turtle += `@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\n`;
+                
+                // Add custom prefixes if provided
+                if (customPrefixes) {
+                    turtle += customPrefixes + '\n\n';
+                }
+
+                // Generate triples for each table
+                tableNames.forEach(tableName => {
+                    const results = db.exec(`SELECT * FROM "${tableName}"`);
+                    if (results.length === 0) return;
+
+                    const { columns, values } = results[0];
+                    
+                    values.forEach((row, index) => {
+                        const subject = `ex:${tableName}_${index + 1}`;
+                        
+                        columns.forEach((col, colIndex) => {
+                            const predicate = `ex:${sanitizeForRDF(col)}`;
+                            const value = row[colIndex];
+                            
+                            if (value !== null && value !== '') {
+                                // Try to detect data types
+                                let object;
+                                if (!isNaN(value) && !isNaN(parseFloat(value))) {
+                                    object = `"${value}"^^xsd:decimal`;
+                                } else {
+                                    object = `"${escapeRDFLiteral(value)}"`;
+                                }
+                                
+                                turtle += `${subject} ${predicate} ${object} .\n`;
+                            }
+                        });
+                        turtle += '\n';
+                    });
+                });
+
+                document.getElementById('rdf-output').value = turtle;
+                showAlert('RDF triples generated successfully!', 'success');
+
+            } catch (error) {
+                showAlert(`Error generating RDF: ${error.message}`, 'error');
+            } finally {
+                generateBtn.innerHTML = originalText;
+                generateBtn.disabled = false;
+            }
+        }
+
+        function downloadRDF() {
+            const rdf = document.getElementById('rdf-output').value;
+            if (!rdf.trim()) {
+                showAlert('No RDF content to download.', 'error');
+                return;
+            }
+
+            const blob = new Blob([rdf], { type: 'text/turtle' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'output.ttl';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showAlert('RDF file downloaded successfully!', 'success');
+        }
+
+        function copyRDF() {
+            const rdf = document.getElementById('rdf-output').value;
+            if (!rdf.trim()) {
+                showAlert('No RDF content to copy.', 'error');
+                return;
+            }
+
+            navigator.clipboard.writeText(rdf).then(() => {
+                showAlert('RDF copied to clipboard!', 'success');
+            }).catch(() => {
+                showAlert('Failed to copy RDF to clipboard.', 'error');
+            });
+        }
+
+        // Utility functions
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        function showAlert(message, type) {
+            // Remove existing alerts
+            document.querySelectorAll('.alert').forEach(alert => {
+                if (!alert.classList.contains('permanent')) {
+                    alert.remove();
+                }
+            });
+
+            // Create new alert
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+
+            // Insert at the top of the active tab
+            const activeTab = document.querySelector('.tab-content.active');
+            activeTab.insertBefore(alert, activeTab.firstChild);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+
+        function escapeSqlId(id) {
+            return `"${id.replace(/"/g, '""')}"`;
+        }
+
+        function generateTableName(filename) {
+            return filename.replace(/\.csv$/i, '').replace(/[^\w]/g, '_');
+        }
+
+        function parseCSV(text) {
+            const lines = text.trim().split(/\r?\n/).filter(l => l.trim() !== '');
+            if (lines.length === 0) return { columns: [], rows: [] };
+            
+            // Simple CSV parsing - could be enhanced with a proper CSV library
+            const columns = lines[0].split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
+            const rows = lines.slice(1).map(line => {
+                // Handle quoted fields
+                const cells = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"' && (i === 0 || line[i-1] === ',')) {
+                        inQuotes = true;
+                    } else if (char === '"' && inQuotes && (i === line.length - 1 || line[i+1] === ',')) {
+                        inQuotes = false;
+                    } else if (char === ',' && !inQuotes) {
+                        cells.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                cells.push(current.trim());
+                
+                return cells.map(cell => cell.replace(/^["']|["']$/g, ''));
+            });
+            
+            return { columns, rows };
+        }
+
+        function getTableNames(db) {
+            const stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table'");
+            const tables = [];
+            while (stmt.step()) {
+                tables.push(stmt.get()[0]);
+            }
+            stmt.free();
+            return tables;
+        }
+
+        function sanitizeForRDF(header) {
+            return header.trim().replace(/[^\w]/g, '_');
+        }
+
+        function escapeRDFLiteral(value) {
+            return String(value)
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t');
+        }
+
+        // Sample queries for demonstration
+        function loadSampleQuery() {
+            const queries = [
+                "SELECT * FROM your_table LIMIT 10;",
+                "SELECT COUNT(*) as total_records FROM your_table;",
+                "SELECT column_name, COUNT(*) FROM your_table GROUP BY column_name;",
+                "SELECT * FROM your_table WHERE column_name IS NOT NULL ORDER BY column_name;"
+            ];
+            
+            const randomQuery = queries[Math.floor(Math.random() * queries.length)];
+            document.getElementById('sql-query').value = randomQuery;
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + Enter to run query
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                if (document.querySelector('#upload-tab').classList.contains('active')) {
+                    runQuery();
+                } else if (document.querySelector('#rdf-tab').classList.contains('active')) {
+                    generateRDF();
+                }
+            }
+            
+            // Ctrl/Cmd + 1/2 to switch tabs
+            if ((e.ctrlKey || e.metaKey) && e.key === '1') {
+                switchTab('upload');
+                document.querySelector('.nav-tab').click();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === '2') {
+                switchTab('rdf');
+                document.querySelectorAll('.nav-tab')[1].click();
+            }
+        });
+
+        // Add some helpful tooltips and examples
+        document.getElementById('sql-query').addEventListener('focus', function() {
+            if (!this.value.trim()) {
+                loadSampleQuery();
+            }
+        });
+
+        // Auto-resize textareas
+        document.querySelectorAll('textarea').forEach(textarea => {
+            textarea.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.max(120, this.scrollHeight) + 'px';
             });
         });
+    function sendToSpark() {
+      const endpoint = document.getElementById('endpoint').value;
+      const auth = document.getElementById('auth').value;
+      const type = document.querySelector('input[name="type"]:checked').value;
 
-        return {
-            nodes: Array.from(nodes.values()),
-            links: links
-        };
+      // Placeholder logic: You'd use fetch() or XMLHttpRequest here
+      console.log("Sending to:", endpoint);
+      console.log("Auth:", auth);
+      console.log("Type:", type);
+
+      // Example fetch structure:
+      /*
+      fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': auth,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type })
+      }).then(res => res.json())
+        .then(data => console.log("Response:", data))
+        .catch(err => console.error("Error:", err));
+      */
     }
-
-    // --- Initialization ---
-    loadSettings();
-    showTab('instructions'); // Show instructions tab by default
-
-    // Initialize graph service
-    const graphService = initializeGraphControls();
-
-    // Update export graph button to use GraphService
-    exportGraphButton.addEventListener('click', () => graphService.exportGraphAsSvg());
-
-    // Update predicate options helper function
-    function updatePredicateOptions() {
-        const predicates = graphService.getUniquePredicateLabels();
-        const predicateFilter = document.getElementById('predicateFilter');
-        if (predicateFilter) {
-            predicateFilter.innerHTML = '<option value="">All Predicates</option>' +
-                predicates.map(pred => 
-                    `<option value="${pred}">${pred}</option>`
-                ).join('');
-        }
-    }
-
-    // Add click handlers to nav buttons
-    navButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const tabId = button.getAttribute('data-tab');
-            showTab(tabId);
-        });
-    });
-
-    // Show initial tab
-    showTab('instructions');
-
-    // File Upload Event Listeners
-    dropArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropArea.classList.add('dragover');
-    });
-
-    dropArea.addEventListener('dragleave', () => {
-        dropArea.classList.remove('dragover');
-    });
-
-    dropArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropArea.classList.remove('dragover');
-        const file = e.dataTransfer.files[0];
-        if (file) handleFileUpload(file);
-    });
-
-    // File input change handler
-    csvFileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) handleFileUpload(file);
-    });
-
-    // Parse pasted CSV data
-    parsePasteButton.addEventListener('click', () => {
-        const pastedData = csvPasteInput.value.trim();
-        if (pastedData) {
-            parseCSV(pastedData);
-        } else {
-            alert('Please paste some CSV data first');
-        }
-    });
-
-    // Save object type preference
-    document.querySelectorAll('input[name="object-type"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            appSettings.objectType = e.target.value;
-            saveSettings();
-        });
-    });
-});

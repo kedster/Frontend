@@ -3,199 +3,460 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSV to RDF Converter & Graph Visualizer</title>
-    <!-- Update your script tags to use modules -->
-    <!-- External dependencies first -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/rdflib@2.2.0/dist/rdflib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    
-    <!-- Your module scripts with type="module" -->
-    <script type="module" src="rdfservice.js"></script>
-    <script type="module" src="script.js"></script>
-    
-    <!-- Your styles -->
-    <link rel="stylesheet" href="style.css">
+    <title>CSV SQL & RDF Processor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tab.active {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .nav-tab:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .file-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            background: linear-gradient(45deg, #f8f9ff, #fff);
+        }
+
+        .file-upload-area:hover {
+            border-color: #667eea;
+            background: linear-gradient(45deg, #f0f2ff, #fff);
+        }
+
+        .file-input {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 100%;
+            transition: border-color 0.3s ease;
+        }
+
+        .file-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .file-status {
+            margin: 5px 0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .file-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .file-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+            font-size: 1rem;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .results-container {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 500px;
+            overflow: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin: 10px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #f8f9ff;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .config-section {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .form-row input {
+            flex: 1;
+        }
+
+        select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            min-width: 150px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .table-preview {
+            margin-bottom: 30px;
+        }
+
+        .table-preview h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+    </style>
 </head>
 <body>
-    <div id="progress-bar"></div>
-    <header>
-        <h1>CSV to RDF Converter & Graph Visualizer</h1>
-    </header>
+    <script src="script.js"></script>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 CSV SQL & RDF Processor</h1>
+            <p>Upload, Query, and Transform your data with style</p>
+        </div>
 
-    <main>
-        <nav class="left-panel">
-            <button class="nav-button active" data-tab="instructions">Instructions</button>
-            <button class="nav-button" data-tab="input">Input</button>
-            <button class="nav-button" data-tab="configure">Configure</button>
-            <button class="nav-button" data-tab="output">RDF Output</button>
-            <button class="nav-button" data-tab="graph-visualization">Graph Visualization</button>
-            <button class="nav-button" data-tab="sparql-tester">SPARQL Tester</button>
-            <button class="nav-button" data-tab="settings">Settings</button>
-        </nav>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('upload')">📁 Upload & Query</button>
+            <button class="nav-tab" onclick="switchTab('rdf')">🔗 RDF Generator</button>
+        </div>
 
-        <div class="content-area">
-            <!-- Instructions Tab -->
-            <section id="instructions" class="tab-content active">
-                <h2>Instructions</h2>
-                <p>Welcome to the CSV to RDF Converter and Graph Visualizer!</p>
-                <ol>
-                    <li>Go to the "Input" tab to upload your CSV file or paste CSV data.</li>
-                    <li>The CSV data will be previewed.</li>
-                    <li>Navigate to the "Configure" tab to map your CSV columns to Subject, Predicate, and Object components of RDF triples. Define your Base URI and Prefixes here.</li>
-                    <li>Once configured, the "RDF Output" tab will display the generated RDF in Turtle format. You can copy or download it.</li>
-                    <li>The "Graph Visualization" tab will show a semantic graph of your RDF data.</li>
-                    <li>Use the "SPARQL Tester" to query your generated RDF graph.</li>
-                    <li>Settings allows you to manage persistent settings.</li>
-                </ol>
-                <p>Use the action buttons at the bottom to Download RDF, Export Graph, or Reset the application.</p>
-            </section>
-
-            <!-- Input Tab -->
-            <section id="input" class="tab-content">
-                <h2>CSV Input</h2>
-                <div id="drop-area" class="file-upload-area">
-                    <p>Drag & drop a CSV file here or</p>
-                    <input type="file" id="csv-file-input" accept=".csv">
-                    <label for="csv-file-input" class="button">Choose File</label>
+        <!-- Upload & Query Tab -->
+        <div id="upload-tab" class="tab-content active">
+            <div class="file-upload-area">
+                <h3>📂 Upload CSV Files</h3>
+                <p>Drop your CSV files here or click to browse</p>
+                
+                <div id="file-inputs-container">
+                    <!-- File inputs will be dynamically generated -->
                 </div>
                 
-                <div class="paste-area">
-                    <h3>Or paste CSV data:</h3>
-                    <textarea id="csv-paste-input" placeholder="Paste CSV data here..."></textarea>
-                    <button id="parse-paste-button" class="button">Parse CSV</button>
-                </div>
+                <button class="btn" onclick="addFileInput()">+ Add Another File</button>
+            </div>
 
-                <div class="preview-section">
-                    <h3>CSV Data Preview (First <span id="preview-row-count">5</span> Rows)</h3>
-                    <div id="csv-preview">
-                        <p>No CSV data loaded.</p>
-                    </div>
+            <div class="stats" id="upload-stats" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-number" id="files-count">0</div>
+                    <div class="stat-label">Files Loaded</div>
                 </div>
-            </section>
+                <div class="stat-card">
+                    <div class="stat-number" id="tables-count">0</div>
+                    <div class="stat-label">Tables Created</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="rows-count">0</div>
+                    <div class="stat-label">Total Rows</div>
+                </div>
+            </div>
 
-            <!-- Configure Tab -->
-            <section id="configure" class="tab-content">
-                <h2>Configure RDF Mapping</h2>
-                <div class="config-section">
-                    <h3>Base URI & Prefixes</h3>
-                    <label for="base-uri">Base URI:</label>
-                    <input type="text" id="base-uri" placeholder="e.g., http://example.org/data/">
-                    <div id="prefixes-container">
-                        <h4>Prefixes:</h4>
-                        <div class="prefix-entry">
-                            <input type="text" class="prefix-name" placeholder="Prefix (e.g., ex)">
-                            <input type="text" class="prefix-uri" placeholder="URI (e.g., http://example.org/ontology/)">
-                            <button class="remove-prefix button-small">Remove</button>
-                        </div>
-                    </div>
-                    <button id="add-prefix-button" class="button-small">Add Prefix</button>
-                </div>
+            <div style="text-align: center; margin: 20px 0;">
+                <button id="create-db-btn" class="btn" onclick="createDatabase()">
+                    🔨 Create Database
+                </button>
+            </div>
 
-                <div class="config-section">
-                    <h3>Column Mapping</h3>
-                    <p id="mapping-placeholder">Upload CSV to see column mapping options.</p>
-                    <div id="column-mapping-container">
-                        <!-- Mapping dropdowns will be populated here by JS -->
-                    </div>
-                    
-                    <!-- Add this new object type selector -->
-                    <div class="object-type-selector">
-                        <h4>Object Type:</h4>
-                        <div class="radio-group">
-                            <label>
-                                <input type="radio" name="object-type" id="object-type-literal" value="literal" checked>
-                                Literal (String/Number)
-                            </label>
-                            <label>
-                                <input type="radio" name="object-type" id="object-type-uri" value="uri">
-                                URI (Resource)
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <button id="generate-rdf-button" class="button">Generate RDF</button>
-                </div>
-            </section>
+            <div class="form-group">
+                <label for="sql-query">💬 SQL Query:</label>
+                <textarea id="sql-query" placeholder="SELECT * FROM your_table_name LIMIT 10;"></textarea>
+                <button id="run-query-btn" class="btn" onclick="runQuery()" disabled>
+                    ▶️ Run Query
+                </button>
+            </div>
 
-            <!-- RDF Output Tab -->
-            <section id="output" class="tab-content">
-                <h2>RDF Output</h2>
-                <div class="output-controls">
-                    <button id="copy-rdf-button" class="button">Copy to Clipboard</button>
-                    <button id="download-rdf-button" class="button">Download RDF</button>
-                </div>
-                <textarea id="rdf-output-editor" readonly></textarea>
-            </section>
+            <div id="query-results" class="results-container" style="display: none;"></div>
+            <div id="tables-display" class="results-container" style="display: none;"></div>
+        </div>
 
-            <!-- Graph Visualization Tab -->
-            <section id="graph-visualization" class="tab-content">
-                <h2>Graph Visualization</h2>
-                <div id="graph-message">
-                    Upload CSV, configure mapping, and generate RDF to see the graph.
-                </div>
-              <!--    <div>
-                    <label>
-                        <input type="checkbox" id="rotate-graph-switch">
-                        Rotate Visualization
-                    </label>
-                </div>-->
-                <div id="graph-container" class="graph-container">
-                    <svg id="rdf-graph"></svg>
-                </div>
-
-                <div class="chart-controls">
-                    <div class="button-group">
-                        <button class="chart-btn" data-chart="forceDirected">Force Directed</button>
-                        <button class="chart-btn" data-chart="barChart">Bar Chart</button>
-                        <button class="chart-btn" data-chart="pieChart">Pie Chart</button>
-                        <button class="chart-btn" data-chart="timeSeriesChart">Time Series</button>
-                        <button class="chart-btn" data-chart="histogram">Histogram</button>
-                        <button class="chart-btn" data-chart="linkTypeBreakdown">Link Types</button>
-                        <button class="chart-btn" data-chart="groupSizeChart">Group Sizes</button>
-                    </div>
-                    
-                    <!-- Predicate filter (only for Force Directed Graph) -->
-                    <div class="filter-group" id="predicateFilterContainer" style="display: none;">
-                        <label for="predicateFilter">Filter by Predicate:</label>
-                        <select id="predicateFilter">
-                            <option value="">All Predicates</option>
+        <!-- RDF Tab -->
+        <div id="rdf-tab" class="tab-content">
+            <div class="config-section">
+                <h3>⚙️ RDF Configuration</h3>
+                
+                <div class="form-group">
+                    <label for="base-uri">Base Ontology URI:</label>
+                    <div class="form-row">
+                        <input type="text" id="base-uri" value="http://example.org/" placeholder="http://example.org/">
+                        <select id="ontology-select">
+                            <option value="address">address</option>
+                            <option value="stock">stock</option>
+                            <option value="invoice">invoice</option>
+                            <option value="transactions">transactions</option>
+                            <option value="customer">customer</option>
+                            <option value="product">product</option>
+                            <option value="order">order</option>
+                            <option value="employee">employee</option>
                         </select>
                     </div>
                 </div>
-            </section>
 
-            <!-- SPARQL Tester Tab -->
-            <section id="sparql-tester" class="tab-content">
-                <h2>SPARQL Tester</h2>
-                <textarea id="sparql-query-input" rows="10" placeholder="PREFIX ex: &lt;http://example.org/ontology/&gt;
-SELECT ?s ?p ?o WHERE { ?s ?p ?o . }
-LIMIT 10"></textarea>
-                <button id="execute-sparql-button" class="button">Execute SPARQL Query</button>
-                <h3>SPARQL Results</h3>
-                <div id="sparql-results">
-                    <p>No query executed yet.</p>
+                <div class="form-group">
+                    <label for="prefixes">Custom Prefixes (Turtle format):</label>
+                    <textarea id="prefixes" rows="4" placeholder="@prefix ex: <http://example.org/ontology#> ."></textarea>
                 </div>
-            </section>
 
-            <!-- Settings Tab -->
-            <section id="settings" class="tab-content">
-                <h2>Settings</h2>
-                <p>Settings are automatically saved to your browser's local storage.</p>
-                <div class="setting-item">
-                    <label for="csv-preview-rows">CSV Preview Rows:</label>
-                    <input type="number" id="csv-preview-rows" value="5" min="1" max="50">
+                <button id="generate-rdf-btn" class="btn" onclick="generateRDF()" disabled>
+                    🔄 Generate RDF Triples
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label for="rdf-output">Generated RDF (Turtle):</label>
+                <div style="margin-bottom: 10px;">
+                    <button class="btn btn-secondary" onclick="downloadRDF()">⬇️ Download .ttl</button>
+                    <button class="btn btn-secondary" onclick="copyRDF()">📋 Copy to Clipboard</button>
                 </div>
-                <p>Click "Reset All" in the bottom bar to clear all saved settings and data.</p>
-            </section>
+                <textarea id="rdf-output" readonly rows="15" placeholder="Your RDF triples will appear here..."></textarea>
+            </div>
+            
+  <h2>Send to Spark Endpoint</h2>
+
+  <!-- Endpoint URL -->
+  <label for="endpoint">Spark Endpoint URL:</label>
+  <input type="text" id="endpoint" placeholder="https://api.spark.com/endpoint" style="width: 100%;">
+
+  <!-- Authentication Token -->
+  <label for="auth">Authentication Token:</label>
+  <input type="text" id="auth" placeholder="Bearer or Basic token" style="width: 100%;">
+
+  <!-- Endpoint Type Radio Switcher -->
+  <div class="radio-group">
+    <label>Endpoint Type:</label>
+    <input type="radio" name="type" value="ingest" checked> Ingest<br>
+    <input type="radio" name="type" value="query"> Query<br>
+    <input type="radio" name="type" value="other"> Other
+  </div>
+
+  <!-- Submit Button -->
+  <button onclick="sendToSpark()">Send</button>
         </div>
-    </main>
+    </div>
 
-    <footer class="bottom-bar">
-        <button id="download-all-rdf-button" class="button">Download RDF</button>
-        <button id="export-graph-button" class="button">Export Graph (SVG)</button>
-        <button id="reset-app-button" class="button reset-button">Reset All</button>
-    </footer>
+
 </body>
 </html>

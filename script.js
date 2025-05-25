@@ -598,3 +598,27 @@
                 this.style.height = Math.max(120, this.scrollHeight) + 'px';
             });
         });
+    function sendToSpark() {
+      const endpoint = document.getElementById('endpoint').value;
+      const auth = document.getElementById('auth').value;
+      const type = document.querySelector('input[name="type"]:checked').value;
+
+      // Placeholder logic: You'd use fetch() or XMLHttpRequest here
+      console.log("Sending to:", endpoint);
+      console.log("Auth:", auth);
+      console.log("Type:", type);
+
+      // Example fetch structure:
+      /*
+      fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': auth,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type })
+      }).then(res => res.json())
+        .then(data => console.log("Response:", data))
+        .catch(err => console.error("Error:", err));
+      */
+    }

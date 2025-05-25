@@ -433,6 +433,27 @@
                 </div>
                 <textarea id="rdf-output" readonly rows="15" placeholder="Your RDF triples will appear here..."></textarea>
             </div>
+            
+  <h2>Send to Spark Endpoint</h2>
+
+  <!-- Endpoint URL -->
+  <label for="endpoint">Spark Endpoint URL:</label>
+  <input type="text" id="endpoint" placeholder="https://api.spark.com/endpoint" style="width: 100%;">
+
+  <!-- Authentication Token -->
+  <label for="auth">Authentication Token:</label>
+  <input type="text" id="auth" placeholder="Bearer or Basic token" style="width: 100%;">
+
+  <!-- Endpoint Type Radio Switcher -->
+  <div class="radio-group">
+    <label>Endpoint Type:</label>
+    <input type="radio" name="type" value="ingest" checked> Ingest<br>
+    <input type="radio" name="type" value="query"> Query<br>
+    <input type="radio" name="type" value="other"> Other
+  </div>
+
+  <!-- Submit Button -->
+  <button onclick="sendToSpark()">Send</button>
         </div>
     </div>
 

@@ -9,7 +9,12 @@
 </head>
 <body>
   <h1>CSV SQL Table Preview & Query</h1>
-
+  <!-- Navigation Buttons -->
+  <div id="navigation">
+    <button onclick="window.location.href='index.html'">Main Page</button>
+    <button onclick="window.location.href='rdf.html'">Go to RDF Page</button>
+  </div>
+  
   <div id="fileInputsContainer">
     <label>Upload CSV File 1:</label>
     <input type="file" id="fileInput1" accept=".csv" />
@@ -36,10 +41,10 @@
   <button id="runQueryBtn" disabled>Run Query</button>
 
   <textarea id="sqlTextarea" placeholder="Enter your SQL query here..."></textarea>
-
+  <div id="results"></div>
   <div id="tablesDisplay"></div>
 
-  <div id="results"></div>
+
 
   <script src="script.js"></script>
 </body>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RDF Triple Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="rdf.css" />
+</head>
+<body>
+  <header>
+    <h1>📚 RDF Triple Generator</h1>
+    <button onclick="window.location.href='index.html'">← Back to Upload</button>
+  </header>
+
+  <section>
+    <p>
+      This tool converts your uploaded CSV (via SQL) into RDF triples using the
+      Turtle syntax. You can copy, inspect, or download the output for use in
+      linked data projects.
+    </p>
+
+    <div class="buttons">
+      <button onclick="downloadRDF()">Download RDF (.ttl)</button>
+      <button onclick="copyToClipboard()">Copy to Clipboard</button>
+    </div>
+
+    <textarea
+      id="rdfOutput"
+      readonly
+      placeholder="Your RDF triples will appear here..."
+    ></textarea>
+  </section>
+
+  <script src="https://sql.js.org/dist/sql-wasm.js"></script>
+  <script src="rdf.js"></script>
+</body>
+</html>

@@ -97,7 +97,10 @@ function copyToClipboard() {
 
 // Hook buttons after DOM ready
 window.onload = () => {
-  initRDF();
+  const dbBase64 = localStorage.getItem("sqljs_db");
+  if (!dbBase64) {
+    alert("No database found. Load CSV in index.html first.");
+  }
 
   const generateBtn = document.getElementById('generateTriplesBtn');
   if (generateBtn) {

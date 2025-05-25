@@ -13,7 +13,14 @@ async function initRDF() {
   const db = new SQL.Database(bytes);
 
   const tables = getTableNames(db);
-  let turtle = `@prefix ex: <http://example.org/> .\n@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\n`;
+
+  // Get full ontology URI from inputs
+  const fullOntologyUri = getFullOntologyUri();
+
+  // Build prefixes dynamically
+  const prefixes = `@prefix ex: <${fullOntologyUri}> .\n@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\n`;
+
+  let turtle = prefixes;
 
   for (const table of tables) {
     const stmt = db.prepare(`SELECT * FROM ${table}`);
@@ -50,6 +57,24 @@ function sanitize(header) {
   return header.trim().replace(/[^\w]/g, "_");
 }
 
+// Returns the full ontology URI from baseUri input + dropdown select
+function getFullOntologyUri() {
+  const baseUriInput = document.getElementById('baseUri');
+  const ontologySelect = document.getElementById('ontologySelect');
+
+  if (!baseUriInput || !ontologySelect) return "http://example.org/"; // fallback
+
+  let baseUri = baseUriInput.value.trim();
+  const suffix = ontologySelect.value.trim();
+
+  // Ensure baseUri ends with / or #
+  if (!baseUri.endsWith('/') && !baseUri.endsWith('#')) {
+    baseUri += '/';
+  }
+
+  return baseUri + suffix + '#';
+}
+
 function downloadRDF() {
   const rdf = document.getElementById("rdfOutput").value;
   const blob = new Blob([rdf], { type: "text/turtle" });
@@ -61,4 +86,31 @@ function downloadRDF() {
   URL.revokeObjectURL(url);
 }
 
-window.onload = initRDF;
+function copyToClipboard() {
+  const rdf = document.getElementById("rdfOutput").value;
+  navigator.clipboard.writeText(rdf).then(() => {
+    alert("RDF copied to clipboard!");
+  }).catch(() => {
+    alert("Failed to copy RDF.");
+  });
+}
+
+// Hook buttons after DOM ready
+window.onload = () => {
+  initRDF();
+
+  const generateBtn = document.getElementById('generateTriplesBtn');
+  if (generateBtn) {
+    generateBtn.onclick = initRDF;
+  }
+
+  const downloadBtn = document.getElementById('downloadBtn');
+  if (downloadBtn) {
+    downloadBtn.onclick = downloadRDF;
+  }
+
+  const copyBtn = document.getElementById('copyBtn');
+  if (copyBtn) {
+    copyBtn.onclick = copyToClipboard;
+  }
+};

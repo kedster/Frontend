@@ -82,6 +82,7 @@ function saveDbToLocalStorage() {
   const binaryString = String.fromCharCode(...binaryArray);
   const base64String = btoa(binaryString);
   localStorage.setItem('sqljs_db', base64String);
+  console.log("DB saved to localStorage, size:", base64String.length);
 }
 
 function updateRunQueryButtonState(enabled) {

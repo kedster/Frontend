@@ -82,8 +82,28 @@ function saveDbToLocalStorage() {
   const binaryString = String.fromCharCode(...binaryArray);
   const base64String = btoa(binaryString);
   localStorage.setItem('sqljs_db', base64String);
-  console.log("DB saved to localStorage, size:", base64String.length);
+  console.log("DB saved to localStorage.");
 }
+
+async function loadDbFromStorage() {
+  const base64String = localStorage.getItem('sqljs_db');
+  if (!base64String) return null;
+
+  const binaryString = atob(base64String);
+  const binaryArray = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    binaryArray[i] = binaryString.charCodeAt(i);
+  }
+
+  if (!SQL) {
+    SQL = await initSqlJs({
+      locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+    });
+  }
+
+  return new SQL.Database(binaryArray);
+}
+
 
 function updateRunQueryButtonState(enabled) {
   runQueryBtn.disabled = !enabled;

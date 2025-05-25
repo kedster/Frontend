@@ -1,6 +1,6 @@
-// script.js
-
 let db = null;
+let SQL = null;
+
 const filesData = new Map(); // key: inputId, value: {name, content}
 
 const fileInputs = [
@@ -19,21 +19,18 @@ const tablesDisplay = document.getElementById('tablesDisplay');
 
 // Initialize
 runQueryBtn.disabled = true;
-createDbBtn.disabled = false; // always enabled
+createDbBtn.disabled = false;
 
-// Helper to escape SQL identifiers like table/column names
+// Helpers
 function escapeSqlId(id) {
   return `"${id.replace(/"/g, '""')}"`;
 }
 
-// Helper to generate table name from filename
 function generateTableName(filename) {
   return filename.replace(/\.csv$/i, '').replace(/[^\w]/g, '_');
 }
 
-// Parse CSV string to {columns:[], rows:[[]]}
 function parseCSV(text) {
-  // Simple CSV parse: split lines, split on commas, trim spaces, no quoted values support
   const lines = text.trim().split(/\r?\n/).filter(l => l.trim() !== '');
   if (lines.length === 0) return { columns: [], rows: [] };
   const columns = lines[0].split(',').map(c => c.trim());
@@ -43,7 +40,6 @@ function parseCSV(text) {
   return { columns, rows };
 }
 
-// Render table preview below with table name as header
 function renderTablePreview(tableName, columns, rows) {
   const container = document.createElement('div');
   container.className = 'table-container';
@@ -54,7 +50,6 @@ function renderTablePreview(tableName, columns, rows) {
 
   const table = document.createElement('table');
 
-  // Header
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
   for (const col of columns) {
@@ -65,7 +60,6 @@ function renderTablePreview(tableName, columns, rows) {
   thead.appendChild(headerRow);
   table.appendChild(thead);
 
-  // Body - show max 20 rows
   const tbody = document.createElement('tbody');
   const previewRows = rows.slice(0, 20);
   for (const row of previewRows) {
@@ -83,12 +77,11 @@ function renderTablePreview(tableName, columns, rows) {
   tablesDisplay.appendChild(container);
 }
 
-// Update run query button enabled state
 function updateRunQueryButtonState(enabled) {
   runQueryBtn.disabled = !enabled;
 }
 
-// Handle file input changes
+// Handle file input
 fileInputs.forEach((input) => {
   input.addEventListener('change', () => {
     const file = input.files[0];
@@ -96,7 +89,6 @@ fileInputs.forEach((input) => {
     let statusElem = document.getElementById(statusId);
 
     if (!statusElem) {
-      // Create status element next to input
       statusElem = document.createElement('div');
       statusElem.id = statusId;
       statusElem.style.marginTop = '4px';
@@ -125,7 +117,7 @@ fileInputs.forEach((input) => {
   });
 });
 
-// Create DB and preview tables button click
+// Create database and load tables
 createDbBtn.addEventListener('click', () => {
   if (db) {
     try {
@@ -144,46 +136,48 @@ createDbBtn.addEventListener('click', () => {
     return;
   }
 
-  // Create new in-memory DB
-  db = new SQL.Database();
+  // Load SQL.js
+  initSqlJs({
+    locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+  }).then(SQLLib => {
+    SQL = SQLLib;
+    db = new SQL.Database();
 
-  for (const [inputId, fileObj] of filesData.entries()) {
-    try {
-      const { name, content } = fileObj;
-      const tableName = generateTableName(name);
-      const { columns, rows } = parseCSV(content);
+    for (const [inputId, fileObj] of filesData.entries()) {
+      try {
+        const { name, content } = fileObj;
+        const tableName = generateTableName(name);
+        const { columns, rows } = parseCSV(content);
 
-      if (columns.length === 0) {
-        throw new Error(`File "${name}" has no columns or is empty.`);
+        if (columns.length === 0) {
+          throw new Error(`File "${name}" has no columns or is empty.`);
+        }
+
+        const createTableSQL = `CREATE TABLE ${escapeSqlId(tableName)} (${columns.map(c => escapeSqlId(c) + ' TEXT').join(', ')})`;
+        db.run(createTableSQL);
+
+        const placeholders = columns.map(() => '?').join(', ');
+        const insertSQL = `INSERT INTO ${escapeSqlId(tableName)} VALUES (${placeholders})`;
+        const stmt = db.prepare(insertSQL);
+
+        for (const row of rows) {
+          const paddedRow = row.slice(0, columns.length);
+          while (paddedRow.length < columns.length) paddedRow.push('');
+          stmt.run(paddedRow);
+        }
+        stmt.free();
+
+        renderTablePreview(tableName, columns, rows);
+      } catch (e) {
+        alert(`Error processing file ${fileObj.name}: ${e.message}`);
       }
-
-      // Create table with all TEXT columns
-      const createTableSQL = `CREATE TABLE ${escapeSqlId(tableName)} (${columns.map(c => escapeSqlId(c) + ' TEXT').join(', ')})`;
-      db.run(createTableSQL);
-
-      // Insert data rows
-      const placeholders = columns.map(() => '?').join(', ');
-      const insertSQL = `INSERT INTO ${escapeSqlId(tableName)} VALUES (${placeholders})`;
-      const stmt = db.prepare(insertSQL);
-
-      for (const row of rows) {
-        // Pad or truncate row to match column count
-        const paddedRow = row.slice(0, columns.length);
-        while (paddedRow.length < columns.length) paddedRow.push('');
-        stmt.run(paddedRow);
-      }
-      stmt.free();
-
-      renderTablePreview(tableName, columns, rows);
-    } catch (e) {
-      alert(`Error processing file ${fileObj.name}: ${e.message}`);
     }
-  }
 
-  updateRunQueryButtonState(true);
+    updateRunQueryButtonState(true);
+  });
 });
 
-// Run Query button click
+// Run query
 runQueryBtn.addEventListener('click', () => {
   if (!db) {
     alert('Database not created yet.');
@@ -203,13 +197,10 @@ runQueryBtn.addEventListener('click', () => {
       return;
     }
 
-    // Show results of first statement
     const { columns, values } = res[0];
 
-    // Build HTML table for results
     const table = document.createElement('table');
 
-    // Header
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
     for (const col of columns) {
@@ -220,7 +211,6 @@ runQueryBtn.addEventListener('click', () => {
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // Body
     const tbody = document.createElement('tbody');
     for (const row of values) {
       const tr = document.createElement('tr');
@@ -233,7 +223,6 @@ runQueryBtn.addEventListener('click', () => {
     }
     table.appendChild(tbody);
 
-    // Show table in results div
     resultsDiv.innerHTML = '';
     resultsDiv.appendChild(table);
 

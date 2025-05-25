@@ -76,6 +76,13 @@ function renderTablePreview(tableName, columns, rows) {
   container.appendChild(table);
   tablesDisplay.appendChild(container);
 }
+function saveDbToLocalStorage() {
+  if (!db) return;
+  const binaryArray = db.export();
+  const binaryString = String.fromCharCode(...binaryArray);
+  const base64String = btoa(binaryString);
+  localStorage.setItem('sqljs_db', base64String);
+}
 
 function updateRunQueryButtonState(enabled) {
   runQueryBtn.disabled = !enabled;

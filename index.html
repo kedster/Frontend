@@ -1,61 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CSV SQL Query Tool - 5 File Upload</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CSV SQL Preview</title>
+<link rel="stylesheet" href="style.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
 </head>
 <body>
-  <header>
-    <h1>CSV SQL Query Tool</h1>
-    <p>Upload up to 5 CSV files. Status shown for each file.</p>
-  </header>
+  <h1>CSV SQL Table Preview & Query</h1>
 
-  <section id="uploadSection">
-    <form id="fileUploadForm">
-      <div class="file-upload-row">
-        <label for="file1">CSV File 1:</label>
-        <input type="file" id="file1" accept=".csv" />
-        <span id="status1" class="file-status-text"></span>
-      </div>
-      <div class="file-upload-row">
-        <label for="file2">CSV File 2:</label>
-        <input type="file" id="file2" accept=".csv" />
-        <span id="status2" class="file-status-text"></span>
-      </div>
-      <div class="file-upload-row">
-        <label for="file3">CSV File 3:</label>
-        <input type="file" id="file3" accept=".csv" />
-        <span id="status3" class="file-status-text"></span>
-      </div>
-      <div class="file-upload-row">
-        <label for="file4">CSV File 4:</label>
-        <input type="file" id="file4" accept=".csv" />
-        <span id="status4" class="file-status-text"></span>
-      </div>
-      <div class="file-upload-row">
-        <label for="file5">CSV File 5:</label>
-        <input type="file" id="file5" accept=".csv" />
-        <span id="status5" class="file-status-text"></span>
-      </div>
-    </form>
-    <button id="createDbBtn" disabled>Create Database and Preview Tables</button>
-  </section>
+  <div id="fileInputsContainer">
+    <label>Upload CSV File 1:</label>
+    <input type="file" id="fileInput1" accept=".csv" />
+    <div id="fileInput1-status" class="file-status"></div>
 
-  <section id="querySection">
-    <textarea id="sql" placeholder="Enter SQL query here... Example: SELECT * FROM your_table LIMIT 10;"></textarea>
-    <button id="runQueryBtn" disabled>Run SQL Query</button>
-    <div id="results"></div>
-  </section>
+    <label>Upload CSV File 2:</label>
+    <input type="file" id="fileInput2" accept=".csv" />
+    <div id="fileInput2-status" class="file-status"></div>
 
-  <section id="tablesDisplay">
-    <h2>Loaded Tables</h2>
-  </section>
+    <label>Upload CSV File 3:</label>
+    <input type="file" id="fileInput3" accept=".csv" />
+    <div id="fileInput3-status" class="file-status"></div>
 
-  <footer>
-    <p>Built with <a href="https://sql.js.org" target="_blank">sql.js</a> – All processing is done in memory.</p>
-  </footer>
+    <label>Upload CSV File 4:</label>
+    <input type="file" id="fileInput4" accept=".csv" />
+    <div id="fileInput4-status" class="file-status"></div>
+
+    <label>Upload CSV File 5:</label>
+    <input type="file" id="fileInput5" accept=".csv" />
+    <div id="fileInput5-status" class="file-status"></div>
+  </div>
+
+  <button id="createDbBtn">Create DB and Preview</button>
+  <button id="runQueryBtn" disabled>Run Query</button>
+
+  <textarea id="sqlTextarea" placeholder="Enter your SQL query here..."></textarea>
+
+  <div id="tablesDisplay"></div>
+
+  <div id="results"></div>
 
   <script src="script.js"></script>
 </body>
